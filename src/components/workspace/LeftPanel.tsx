@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   Bold,
+  ChevronDown,
   Code2,
   FileImage,
   Heading1,
@@ -14,6 +15,7 @@ import {
   Plus,
   Quote,
   Redo2,
+  Settings2,
   Sparkles,
   Trash2,
   Undo2,
@@ -26,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, splitTags } from "@/lib/utils";
 import type { ContentType } from "@/types";
-import { FormattingControls } from "./FormattingControls";
+import { FormattingOptionGroups, StylePresetSelector } from "./FormattingControls";
 import { useWorkflow } from "./WorkflowProvider";
 
 const contentTypes: Array<{ value: ContentType; label: string }> = [
@@ -50,6 +52,7 @@ const toolbarItems = [
 export function LeftPanel() {
   const { state, updateRaw, addImages, removeImage, loadSample } = useWorkflow();
   const [tagDraft, setTagDraft] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const coverImage = state.rawContent.images[0];
   const wordCount = useMemo(
     () => state.rawContent.body.replace(/\s/g, "").length,
@@ -102,20 +105,6 @@ export function LeftPanel() {
           />
         </Field>
 
-        <Field label="内容类型">
-          <select
-            value={state.rawContent.contentType}
-            onChange={(event) => updateRaw({ contentType: event.target.value as ContentType })}
-            className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-          >
-            {contentTypes.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm font-medium text-gray-800">
             <span>标签</span>
@@ -156,7 +145,41 @@ export function LeftPanel() {
           </div>
         </div>
 
-        <FormattingControls />
+        <StylePresetSelector />
+
+        <div className="rounded-md border border-gray-200">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            <span className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4 text-gray-400" />
+              高级设置
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 text-gray-400 transition ${showAdvanced ? "rotate-180" : ""}`}
+            />
+          </button>
+          {showAdvanced ? (
+            <div className="space-y-3 border-t border-gray-100 px-3 py-3">
+              <Field label="内容类型">
+                <select
+                  value={state.rawContent.contentType}
+                  onChange={(event) => updateRaw({ contentType: event.target.value as ContentType })}
+                  className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                >
+                  {contentTypes.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <FormattingOptionGroups />
+            </div>
+          ) : null}
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm font-medium text-gray-800">

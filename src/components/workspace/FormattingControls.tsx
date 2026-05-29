@@ -107,22 +107,17 @@ function OptionGroup<TValue extends string>({
   );
 }
 
-export function FormattingControls() {
-  const { state, setStylePreset, setFormatting } = useWorkflow();
-  const formatting = state.settings.formatting;
+export function StylePresetSelector() {
+  const { state, setStylePreset } = useWorkflow();
 
   return (
-    <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <div className="text-sm font-semibold text-gray-950">排版偏好</div>
-          <div className="text-xs text-gray-400">用于后续平台适配的样式倾向</div>
-        </div>
+        <div className="text-sm font-medium text-gray-800">排版风格</div>
         <span className="shrink-0 rounded-full border border-indigo-100 bg-white px-2 py-0.5 text-xs font-medium text-indigo-700">
           {STYLE_PRESETS[state.settings.stylePreset].label}
         </span>
       </div>
-
       <div className="grid grid-cols-3 gap-1.5">
         {styleOptions.map((style) => (
           <button
@@ -140,7 +135,16 @@ export function FormattingControls() {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
 
+export function FormattingOptionGroups() {
+  const { state, setFormatting } = useWorkflow();
+  const formatting = state.settings.formatting;
+
+  return (
+    <div className="space-y-3">
       <OptionGroup
         label="标题"
         options={titleOptions}
@@ -165,6 +169,21 @@ export function FormattingControls() {
         value={formatting.emphasis}
         onChange={(emphasis) => setFormatting({ emphasis })}
       />
+    </div>
+  );
+}
+
+export function FormattingControls() {
+  return (
+    <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold text-gray-950">排版偏好</div>
+          <div className="text-xs text-gray-400">用于后续平台适配的样式倾向</div>
+        </div>
+      </div>
+      <StylePresetSelector />
+      <FormattingOptionGroups />
     </div>
   );
 }
