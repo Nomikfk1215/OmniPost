@@ -11,7 +11,7 @@ import {
   FileText,
   History,
   PenLine,
-  UserRound
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,12 @@ const navItems: NavItem[] = [
     active: (pathname) => pathname === "/workspace"
   },
   { label: "新建内容", href: "/workspace?intent=new", icon: PenLine },
-  { label: "平台账号", icon: UserRound },
+  {
+    label: "系统设置",
+    href: "/settings",
+    icon: Settings,
+    active: (pathname) => pathname === "/settings"
+  },
   {
     label: "发布记录",
     href: "/records",

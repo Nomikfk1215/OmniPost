@@ -1,5 +1,6 @@
 import { buildPrompt } from "@/lib/prompts/builder";
 import { generateMockPlatformContent } from "@/lib/llm/mock";
+import { getRuntimeLLMConfig } from "@/lib/llm/settings-store";
 import { validatePlatformContent } from "@/lib/validators";
 import type { Content, Platform, PlatformContent, StylePreset } from "@/types";
 
@@ -8,23 +9,23 @@ async function generateViaOpenAICompatible(
   platform: Platform,
   stylePreset: StylePreset
 ): Promise<PlatformContent | null> {
-  if (process.env.OMNIPOST_USE_LLM !== "true" || !process.env.OPENAI_API_KEY) {
+  const config = await getRuntimeLLMConfig();
+
+  if (!config) {
     return null;
   }
 
   const prompt = buildPrompt({ content, platform, stylePreset });
-  const baseUrl = process.env.OMNIPOST_OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const model = process.env.OMNIPOST_OPENAI_MODEL ?? "gpt-4o-mini";
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model,
+        model: config.model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: prompt.systemPrompt },
