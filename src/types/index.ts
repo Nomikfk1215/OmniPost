@@ -2,6 +2,32 @@ export const PLATFORMS = ["wechat", "zhihu", "xiaohongshu", "bilibili"] as const
 
 export type Platform = (typeof PLATFORMS)[number];
 
+export type PublishCapability = "real" | "mock" | "assist";
+
+export type AccountConnectionMethod = "manual" | "oauth";
+
+export type PlatformAccount = {
+  platform: Platform;
+  authorized: boolean;
+  publishCapability: PublishCapability;
+  accountName: string | null;
+  externalAccountId: string | null;
+  connectionMethod: AccountConnectionMethod | null;
+  connectedAt: string | null;
+  tokenExpiresAt: string | null;
+  refreshTokenExpiresAt: string | null;
+  scopes: string[];
+  lastConnectionError: string | null;
+  oauthSupported?: boolean;
+  oauthConfigured?: boolean;
+  oauthHint?: string;
+};
+
+export type StoredPlatformAccount = PlatformAccount & {
+  encryptedAccessToken: string | null;
+  encryptedRefreshToken: string | null;
+};
+
 export type StylePreset = "fresh" | "professional" | "casual";
 
 export type Step = "input" | "adapt" | "preview" | "publish";

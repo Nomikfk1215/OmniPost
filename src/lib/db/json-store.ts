@@ -1,12 +1,20 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Content, PlatformContent, PublishTask, StoredLLMSettings } from "@/types";
+import { createDefaultPlatformAccounts, normalizePlatformAccounts } from "@/lib/platform-accounts";
+import type {
+  Content,
+  PlatformContent,
+  PublishTask,
+  StoredPlatformAccount,
+  StoredLLMSettings
+} from "@/types";
 
 type StoreShape = {
   contents: Content[];
   platformContents: PlatformContent[];
   publishTasks: PublishTask[];
   llmSettings: StoredLLMSettings | null;
+  platformAccounts: StoredPlatformAccount[];
 };
 
 const storeDir = path.join(process.cwd(), ".data");
@@ -14,12 +22,23 @@ const storePath = path.join(storeDir, "omnipost-store.json");
 
 let cache: StoreShape | null = null;
 
-const emptyStore: StoreShape = {
-  contents: [],
-  platformContents: [],
-  publishTasks: [],
-  llmSettings: null
-};
+function createEmptyStore(): StoreShape {
+  return {
+    contents: [],
+    platformContents: [],
+    publishTasks: [],
+    llmSettings: null,
+    platformAccounts: createDefaultPlatformAccounts()
+  };
+}
+
+function normalizeStore(store: Partial<StoreShape>): StoreShape {
+  return {
+    ...createEmptyStore(),
+    ...store,
+    platformAccounts: normalizePlatformAccounts(store.platformAccounts)
+  };
+}
 
 async function ensureStore() {
   await mkdir(storeDir, { recursive: true });
@@ -34,10 +53,16 @@ export async function readStore(): Promise<StoreShape> {
 
   try {
     const file = await readFile(storePath, "utf8");
-    cache = { ...emptyStore, ...(JSON.parse(file) as Partial<StoreShape>) };
+    const parsed = JSON.parse(file) as Partial<StoreShape>;
+    cache = normalizeStore(parsed);
+
+    if (!parsed.platformAccounts) {
+      await writeStore(cache);
+    }
+
     return cache;
   } catch {
-    cache = emptyStore;
+    cache = createEmptyStore();
     await writeStore(cache);
     return cache;
   }

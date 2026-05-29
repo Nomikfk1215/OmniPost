@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -9,28 +10,79 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  PUBLISH_CAPABILITY_INFOS,
+  createDefaultPlatformAccounts,
+  normalizePlatformAccounts
+} from "@/lib/platform-accounts";
 import { PLATFORM_INFOS } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
-import { PLATFORMS, type Platform } from "@/types";
+import { PLATFORMS, type Platform, type PlatformAccount } from "@/types";
 import { useWorkflow } from "./WorkflowProvider";
 
-const platformStatus: Record<
-  Platform,
-  { authorized: boolean; capability: string }
-> = {
-  wechat: { authorized: true, capability: "可真实发布" },
-  zhihu: { authorized: false, capability: "模拟发布" },
-  bilibili: { authorized: true, capability: "模拟投稿" },
-  xiaohongshu: { authorized: false, capability: "辅助发布" }
-};
+function accountsToRecord(accounts: PlatformAccount[]) {
+  return normalizePlatformAccounts(accounts).reduce(
+    (result, account) => ({ ...result, [account.platform]: account }),
+    {} as Record<Platform, PlatformAccount>
+  );
+}
+
+async function parseResponseError(response: Response) {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    return payload.error ?? "请求失败";
+  } catch {
+    return "请求失败";
+  }
+}
+
+const defaultAccounts = accountsToRecord(createDefaultPlatformAccounts());
 
 export function PublishSettingsPanel() {
   const { state, setPlatforms, publish } = useWorkflow();
+  const [accounts, setAccounts] = useState(defaultAccounts);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const isPublishing = state.publishStatus === "publishing";
   const readyCount = state.settings.platforms.filter(
     (platform) => state.platformContents[platform].data
   ).length;
   const canPublish = readyCount > 0 && !isPublishing;
+
+  const loadAccounts = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setAccountsLoading(true);
+    }
+
+    try {
+      const response = await fetch("/api/accounts", { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(await parseResponseError(response));
+      }
+
+      const payload = (await response.json()) as { accounts?: PlatformAccount[] };
+      setAccounts(accountsToRecord(payload.accounts ?? []));
+      setAccountsError(null);
+    } catch (error) {
+      setAccountsError(error instanceof Error ? error.message : "平台账号同步失败");
+    } finally {
+      if (showLoading) {
+        setAccountsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAccounts();
+
+    function handleFocus() {
+      void loadAccounts(false);
+    }
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [loadAccounts]);
 
   function togglePlatform(platform: Platform) {
     const exists = state.settings.platforms.includes(platform);
@@ -46,17 +98,20 @@ export function PublishSettingsPanel() {
         <div className="mb-2 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-gray-950">发布设置</h2>
-            <p className="text-xs text-gray-400">勾选目标平台，确认后模拟发布</p>
+            <p className="text-xs text-gray-400">
+              {accountsError ? "平台账号同步失败，暂显示默认状态" : "勾选目标平台，确认后模拟发布"}
+            </p>
           </div>
           <Badge className="border-gray-200 bg-white text-gray-600">
-            已适配 {readyCount}/{state.settings.platforms.length}
+            {accountsLoading ? "同步账号中" : `已适配 ${readyCount}/${state.settings.platforms.length}`}
           </Badge>
         </div>
 
         <div className="grid grid-cols-2 gap-2 min-[1180px]:grid-cols-4">
           {PLATFORMS.map((platform) => {
             const info = PLATFORM_INFOS[platform];
-            const meta = platformStatus[platform];
+            const meta = accounts[platform];
+            const capability = PUBLISH_CAPABILITY_INFOS[meta.publishCapability];
             const selected = state.settings.platforms.includes(platform);
             const ready = Boolean(state.platformContents[platform].data);
             const locked = selected && state.settings.platforms.length === 1;
@@ -87,8 +142,10 @@ export function PublishSettingsPanel() {
                     </span>
                   </span>
                   <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-gray-500">
-                    <span>{meta.authorized ? "已授权" : "未授权"}</span>
-                    <span className="truncate">{meta.capability}</span>
+                    <span className="truncate">
+                      {meta.authorized ? meta.accountName ?? "已授权" : "未授权"}
+                    </span>
+                    <span className="truncate">{capability.label}</span>
                   </span>
                 </span>
               </label>
