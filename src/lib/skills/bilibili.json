@@ -1,0 +1,28 @@
+{
+  "platform": "bilibili",
+  "displayName": "B站专栏",
+  "positioning": "年轻化、知识分享、视频内容补充平台",
+  "titleRule": {
+    "maxLength": 60,
+    "style": "有看点、清楚表达主题"
+  },
+  "bodyRule": {
+    "style": "轻松但有信息量，适合专栏或视频简介"
+  },
+  "tagRule": {
+    "min": 3,
+    "max": 10
+  },
+  "categoryRule": {
+    "needSuggestion": true
+  },
+  "outputSchema": {
+    "title": "string",
+    "description": "string",
+    "body": "string",
+    "tags": "string[]",
+    "categorySuggestion": "string",
+    "coverSuggestion": "string"
+  },
+  "editableFields": ["title", "description", "body", "tags", "categorySuggestion", "coverSuggestion"]
+}

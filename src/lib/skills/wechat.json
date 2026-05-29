@@ -1,0 +1,24 @@
+{
+  "platform": "wechat",
+  "displayName": "微信公众号",
+  "positioning": "长文阅读、观点表达、私域传播",
+  "titleRule": {
+    "maxLength": 60,
+    "style": "清晰、有信息量、适合转发"
+  },
+  "bodyRule": {
+    "format": "html",
+    "style": "结构完整、段落清晰、适合长文阅读"
+  },
+  "imageRule": {
+    "needCover": true
+  },
+  "outputSchema": {
+    "title": "string",
+    "digest": "string",
+    "html": "string",
+    "coverSuggestion": "string",
+    "imageSuggestions": "string[]"
+  },
+  "editableFields": ["title", "digest", "html", "coverSuggestion", "imageSuggestions"]
+}

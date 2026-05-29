@@ -1,0 +1,23 @@
+{
+  "platform": "zhihu",
+  "displayName": "知乎",
+  "positioning": "知识问答、经验分享、理性讨论平台",
+  "titleRule": {
+    "style": "问题式、经验式、观点清晰"
+  },
+  "bodyRule": {
+    "style": "逻辑清晰、分点论述、减少营销感",
+    "structure": "结论先行-原因分析-方法步骤-总结"
+  },
+  "tagRule": {
+    "min": 2,
+    "max": 5
+  },
+  "outputSchema": {
+    "title": "string",
+    "openingConclusion": "string",
+    "body": "string",
+    "tags": "string[]"
+  },
+  "editableFields": ["title", "openingConclusion", "body", "tags"]
+}

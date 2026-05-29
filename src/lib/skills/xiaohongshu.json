@@ -1,0 +1,29 @@
+{
+  "platform": "xiaohongshu",
+  "displayName": "小红书",
+  "positioning": "生活方式、种草、经验分享平台",
+  "titleRule": {
+    "maxLength": 40,
+    "style": "短、直接、有情绪、有结果感"
+  },
+  "bodyRule": {
+    "style": "短句、清单、emoji、口语化"
+  },
+  "tagRule": {
+    "min": 3,
+    "max": 8,
+    "prefix": "#"
+  },
+  "imageRule": {
+    "suggestRatio": "3:4",
+    "needCover": true
+  },
+  "outputSchema": {
+    "title": "string",
+    "body": "string",
+    "tags": "string[]",
+    "imageSuggestions": "string[]",
+    "interactionGuide": "string"
+  },
+  "editableFields": ["title", "body", "tags", "imageSuggestions", "interactionGuide"]
+}
