@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import {
-  CalendarClock,
   CheckCircle2,
   ExternalLink,
   Loader2,
-  Radio,
   Send
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +13,6 @@ import { PLATFORM_INFOS } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { PLATFORMS, type Platform } from "@/types";
 import { useWorkflow } from "./WorkflowProvider";
-
-type PublishMode = "real" | "mock";
 
 const platformStatus: Record<
   Platform,
@@ -31,12 +26,11 @@ const platformStatus: Record<
 
 export function PublishSettingsPanel() {
   const { state, setPlatforms, publish } = useWorkflow();
-  const [mode, setMode] = useState<PublishMode>("mock");
   const isPublishing = state.publishStatus === "publishing";
   const readyCount = state.settings.platforms.filter(
     (platform) => state.platformContents[platform].data
   ).length;
-  const canPublish = mode === "mock" && readyCount > 0 && !isPublishing;
+  const canPublish = readyCount > 0 && !isPublishing;
 
   function togglePlatform(platform: Platform) {
     const exists = state.settings.platforms.includes(platform);
@@ -103,49 +97,14 @@ export function PublishSettingsPanel() {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col justify-between gap-2 rounded-md border border-gray-100 bg-gray-50 p-3">
-        <div className="space-y-2">
-          <div>
-            <div className="mb-1.5 text-sm font-semibold text-gray-950">发布模式</div>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: "real" as const, label: "真实发布" },
-                { id: "mock" as const, label: "模拟发布" }
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setMode(item.id)}
-                  className={cn(
-                    "flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-medium transition",
-                    mode === item.id
-                      ? "border-indigo-300 bg-white text-indigo-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-500 hover:text-gray-800"
-                  )}
-                >
-                  <Radio className="h-4 w-4" />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex h-7 items-center gap-2 text-sm text-gray-500 transition hover:text-gray-800"
-          >
-            <CalendarClock className="h-4 w-4" />
-            定时发布
-          </button>
-        </div>
-
+      <div className="flex min-w-0 flex-col justify-center gap-2 rounded-md border border-gray-100 bg-gray-50 p-3">
         <div className="space-y-2">
           <Button className="w-full" onClick={publish} disabled={!canPublish}>
             {isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             立即发布
           </Button>
           <div className="truncate text-center text-xs text-gray-500">
-            {mode === "real" ? "真实发布 API 暂未接入，本轮使用模拟发布" : "将内容模拟发布到目标平台，并生成发布记录"}
+            将内容模拟发布到目标平台，并生成发布记录
           </div>
           {state.publishTask ? (
             <div className="rounded-md border border-emerald-200 bg-white p-2">
