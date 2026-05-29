@@ -17,7 +17,8 @@ import type {
   RawContent,
   Step,
   StylePreset,
-  UploadedImage
+  UploadedImage,
+  WorkspaceFormatting
 } from "@/types";
 import { PLATFORMS } from "@/types";
 
@@ -34,11 +35,13 @@ type WorkspaceState = {
   settings: {
     platforms: Platform[];
     stylePreset: StylePreset;
+    formatting: WorkspaceFormatting;
   };
   platformContents: Record<Platform, PlatformSlot>;
   activePlatformTab: Platform;
   statusMessage: string | null;
   publishTask: PublishTask | null;
+  publishStatus: "idle" | "publishing" | "success" | "error";
 };
 
 type Action =
@@ -47,12 +50,15 @@ type Action =
   | { type: "REMOVE_IMAGE"; payload: string }
   | { type: "SET_PLATFORMS"; payload: Platform[] }
   | { type: "SET_STYLE"; payload: StylePreset }
+  | { type: "SET_FORMATTING"; payload: Partial<WorkspaceFormatting> }
   | { type: "SET_ACTIVE_PLATFORM"; payload: Platform }
   | { type: "START_GENERATION" }
   | { type: "GENERATION_SUCCESS"; payload: { contentId: string; outputs: PlatformContent[] } }
   | { type: "GENERATION_ERROR"; payload: string }
   | { type: "UPDATE_PLATFORM_CONTENT"; payload: { platform: Platform; patch: Partial<PlatformContent> } }
+  | { type: "PUBLISH_START" }
   | { type: "PUBLISH_SUCCESS"; payload: PublishTask }
+  | { type: "PUBLISH_ERROR"; payload: string }
   | { type: "SET_STATUS"; payload: string | null }
   | { type: "SET_SAMPLE" };
 
@@ -69,18 +75,26 @@ const initialState: WorkspaceState = {
   contentId: null,
   rawContent: {
     title: "",
+    contentType: "tutorial",
     body: "",
     images: [],
     userTags: []
   },
   settings: {
     platforms: [...PLATFORMS],
-    stylePreset: "professional"
+    stylePreset: "fresh",
+    formatting: {
+      titleStyle: "title",
+      bodyStyle: "body",
+      component: "image",
+      emphasis: "bold"
+    }
   },
   platformContents: emptySlots,
   activePlatformTab: "wechat",
   statusMessage: null,
-  publishTask: null
+  publishTask: null,
+  publishStatus: "idle"
 };
 
 function reducer(state: WorkspaceState, action: Action): WorkspaceState {
@@ -124,6 +138,15 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         ...state,
         settings: { ...state.settings, stylePreset: action.payload }
       };
+    case "SET_FORMATTING":
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          formatting: { ...state.settings.formatting, ...action.payload }
+        },
+        statusMessage: "排版样式已更新"
+      };
     case "SET_ACTIVE_PLATFORM":
       return {
         ...state,
@@ -139,7 +162,8 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         ...state,
         step: "adapt",
         platformContents: nextSlots,
-        statusMessage: "正在生成平台版本..."
+        statusMessage: "正在生成平台版本...",
+        publishStatus: "idle"
       };
     }
     case "GENERATION_SUCCESS": {
@@ -158,7 +182,8 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         platformContents: nextSlots,
         activePlatformTab: action.payload.outputs[0]?.platform ?? state.activePlatformTab,
         statusMessage: "平台版本已生成",
-        publishTask: null
+        publishTask: null,
+        publishStatus: "idle"
       };
     }
     case "GENERATION_ERROR": {
@@ -200,15 +225,29 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
             data: updated
           }
         },
+        publishStatus: "idle",
         statusMessage: null
       };
     }
+    case "PUBLISH_START":
+      return {
+        ...state,
+        publishStatus: "publishing",
+        statusMessage: "正在模拟发布..."
+      };
     case "PUBLISH_SUCCESS":
       return {
         ...state,
         step: "publish",
         publishTask: action.payload,
+        publishStatus: "success",
         statusMessage: "模拟发布成功"
+      };
+    case "PUBLISH_ERROR":
+      return {
+        ...state,
+        publishStatus: "error",
+        statusMessage: action.payload
       };
     case "SET_STATUS":
       return {
@@ -221,6 +260,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         rawContent: {
           ...state.rawContent,
           title: "如何用 AI 提升学习效率",
+          contentType: "tutorial",
           body:
             "很多人在学习时没有计划，也不知道如何复盘。可以用 AI 帮助自己拆解学习目标、整理资料、生成每日学习计划，并在学习后生成复盘问题。\n\n这样可以提升学习效率，也能更快发现知识漏洞。关键不是让 AI 替你学习，而是让它成为学习流程里的辅助系统。",
           userTags: ["AI", "学习效率", "方法论"]
@@ -242,8 +282,10 @@ type WorkflowContextValue = {
   removeImage: (id: string) => void;
   setPlatforms: (platforms: Platform[]) => void;
   setStylePreset: (stylePreset: StylePreset) => void;
+  setFormatting: (patch: Partial<WorkspaceFormatting>) => void;
   setActivePlatform: (platform: Platform) => void;
   updatePlatformContent: (platform: Platform, patch: Partial<PlatformContent>) => void;
+  setStatus: (message: string | null) => void;
   loadSample: () => void;
 };
 
@@ -281,6 +323,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SET_STYLE", payload: stylePreset });
   }, []);
 
+  const setFormatting = useCallback((patch: Partial<WorkspaceFormatting>) => {
+    dispatch({ type: "SET_FORMATTING", payload: patch });
+  }, []);
+
   const setActivePlatform = useCallback((platform: Platform) => {
     dispatch({ type: "SET_ACTIVE_PLATFORM", payload: platform });
   }, []);
@@ -291,6 +337,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
 
   const loadSample = useCallback(() => {
     dispatch({ type: "SET_SAMPLE" });
+  }, []);
+
+  const setStatus = useCallback((message: string | null) => {
+    dispatch({ type: "SET_STATUS", payload: message });
   }, []);
 
   const generate = useCallback(async () => {
@@ -321,7 +371,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       const generateResponse = await fetch(`/api/contents/${content.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(state.settings)
+        body: JSON.stringify({
+          platforms: state.settings.platforms,
+          stylePreset: state.settings.stylePreset
+        })
       });
 
       if (!generateResponse.ok) {
@@ -375,23 +428,31 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const response = await fetch("/api/publish/mock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contentId: state.contentId,
-        title: state.rawContent.title || platformContents[0].title,
-        platformContents
-      })
-    });
+    dispatch({ type: "PUBLISH_START" });
 
-    if (!response.ok) {
-      dispatch({ type: "SET_STATUS", payload: "模拟发布失败" });
-      return;
+    try {
+      const response = await fetch("/api/publish/mock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentId: state.contentId,
+          title: state.rawContent.title || platformContents[0].title,
+          platformContents
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("模拟发布失败");
+      }
+
+      const { task } = (await response.json()) as { task: PublishTask };
+      dispatch({ type: "PUBLISH_SUCCESS", payload: task });
+    } catch (error) {
+      dispatch({
+        type: "PUBLISH_ERROR",
+        payload: error instanceof Error ? error.message : "模拟发布失败"
+      });
     }
-
-    const { task } = (await response.json()) as { task: PublishTask };
-    dispatch({ type: "PUBLISH_SUCCESS", payload: task });
   }, [state.contentId, state.platformContents, state.rawContent.title, state.settings.platforms]);
 
   const value = useMemo(
@@ -405,8 +466,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       removeImage,
       setPlatforms,
       setStylePreset,
+      setFormatting,
       setActivePlatform,
       updatePlatformContent,
+      setStatus,
       loadSample
     }),
     [
@@ -419,8 +482,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       removeImage,
       setPlatforms,
       setStylePreset,
+      setFormatting,
       setActivePlatform,
       updatePlatformContent,
+      setStatus,
       loadSample
     ]
   );

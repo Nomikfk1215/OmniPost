@@ -2,19 +2,19 @@
 
 import { CenterPanel } from "./CenterPanel";
 import { LeftPanel } from "./LeftPanel";
+import { PublishSettingsPanel } from "./PublishSettingsPanel";
 import { RightPanel } from "./RightPanel";
-import { SettingsBar } from "./SettingsBar";
-import { StepIndicator } from "./StepIndicator";
 
 export function WorkspaceShell() {
   return (
-    <main className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-4">
-      <StepIndicator />
-      <SettingsBar />
-      <div className="grid gap-3 xl:grid-cols-[minmax(280px,0.9fr)_minmax(360px,1.2fr)_minmax(300px,0.9fr)]">
-        <LeftPanel />
-        <CenterPanel />
-        <RightPanel />
+    <main className="ml-[216px] h-screen overflow-hidden pt-16">
+      <div className="grid h-[calc(100vh-64px)] grid-rows-[minmax(0,1fr)_auto] gap-3 p-3 min-[1440px]:p-4">
+        <div className="grid min-h-0 grid-cols-1 gap-3 min-[1180px]:grid-cols-[360px_minmax(0,1fr)_252px] min-[1440px]:grid-cols-[380px_minmax(0,1fr)_272px]">
+          <LeftPanel />
+          <CenterPanel />
+          <RightPanel />
+        </div>
+        <PublishSettingsPanel />
       </div>
     </main>
   );

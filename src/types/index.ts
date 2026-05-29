@@ -2,12 +2,22 @@ export const PLATFORMS = ["wechat", "zhihu", "xiaohongshu", "bilibili"] as const
 
 export type Platform = (typeof PLATFORMS)[number];
 
-export type StylePreset = "professional" | "casual";
+export type StylePreset = "fresh" | "professional" | "casual";
 
 export type Step = "input" | "adapt" | "preview" | "publish";
 
+export type ContentType = "tutorial" | "article" | "note" | "campaign";
+
+export type WorkspaceFormatting = {
+  titleStyle: "title" | "subtitle" | "heading";
+  bodyStyle: "body" | "quote" | "list";
+  component: "image" | "divider" | "qrcode";
+  emphasis: "bold" | "color" | "background";
+};
+
 export type RawContent = {
   title: string;
+  contentType: ContentType;
   body: string;
   images: UploadedImage[];
   userTags: string[];
