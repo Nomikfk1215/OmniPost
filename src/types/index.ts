@@ -111,6 +111,36 @@ export type PlatformGenerationRequest = {
   stylePreset: StylePreset;
 };
 
+export type LLMConnectionStatus = "unknown" | "connected" | "failed";
+
+export type StoredLLMSettings = {
+  provider: "openai-compatible";
+  apiKey: string | null;
+  baseUrl: string;
+  model: string;
+  enabled: boolean;
+  connectionStatus: LLMConnectionStatus;
+  lastTestedAt: string | null;
+  lastTestError: string | null;
+  updatedAt: string;
+};
+
+export type LLMRuntimeMode = "ui" | "env" | "mock" | "disabled";
+
+export type PublicLLMSettings = {
+  configured: boolean;
+  maskedKey: string | null;
+  baseUrl: string;
+  model: string;
+  enabled: boolean;
+  connectionStatus: LLMConnectionStatus;
+  lastTestedAt: string | null;
+  lastTestError: string | null;
+  mode: LLMRuntimeMode;
+  envConfigured: boolean;
+  updatedAt: string | null;
+};
+
 export type PlatformInfo = {
   id: Platform;
   label: string;

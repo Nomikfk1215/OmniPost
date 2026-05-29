@@ -1,11 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Content, PlatformContent, PublishTask } from "@/types";
+import type { Content, PlatformContent, PublishTask, StoredLLMSettings } from "@/types";
 
 type StoreShape = {
   contents: Content[];
   platformContents: PlatformContent[];
   publishTasks: PublishTask[];
+  llmSettings: StoredLLMSettings | null;
 };
 
 const storeDir = path.join(process.cwd(), ".data");
@@ -16,7 +17,8 @@ let cache: StoreShape | null = null;
 const emptyStore: StoreShape = {
   contents: [],
   platformContents: [],
-  publishTasks: []
+  publishTasks: [],
+  llmSettings: null
 };
 
 async function ensureStore() {
@@ -32,7 +34,7 @@ export async function readStore(): Promise<StoreShape> {
 
   try {
     const file = await readFile(storePath, "utf8");
-    cache = JSON.parse(file) as StoreShape;
+    cache = { ...emptyStore, ...(JSON.parse(file) as Partial<StoreShape>) };
     return cache;
   } catch {
     cache = emptyStore;

@@ -11,6 +11,7 @@ OmniPost 是一个多平台内容创作与模拟发布工作台。
 - 规则校验：标题、摘要、标签、平台特有字段校验
 - 模拟发布：生成发布任务与可访问的 mock 页面
 - 发布记录：查看历史发布任务和链接
+- 系统设置：在 UI 中配置 OpenAI-compatible API，支持连接测试与密文落盘
 
 ## 技术栈
 
@@ -56,16 +57,25 @@ npm run typecheck
 ## 可选环境变量
 
 默认情况下，平台生成走本地 mock 逻辑。  
-如果要启用 OpenAI-compatible 接口，配置以下变量：
+LLM 运行时优先使用 `/settings` 页面保存的配置；未保存 UI Key 时，再读取环境变量作为兜底。
+
+可以先复制示例文件：
+
+```bash
+cp .env.example .env.local
+```
+
+可用变量：
 
 ```bash
 OMNIPOST_USE_LLM=true
 OPENAI_API_KEY=your_key
 OMNIPOST_OPENAI_BASE_URL=https://api.openai.com/v1
 OMNIPOST_OPENAI_MODEL=gpt-4o-mini
+OMNIPOST_ENCRYPTION_KEY=replace-with-a-long-random-secret
 ```
 
-未配置或调用失败时会自动回退到 mock 生成，保证演示闭环可用。
+`OMNIPOST_ENCRYPTION_KEY` 用于加密设置页保存的 API Key；未配置时会使用本地开发默认密钥。未配置 LLM 或调用失败时会自动回退到 mock 生成，保证演示闭环可用。
 
 ## 目录结构
 
@@ -95,6 +105,10 @@ docs/                         # PRD / 技术方案 / prompt 设计
 
 - `POST /api/contents`：创建原始内容
 - `POST /api/contents/{id}/generate`：生成平台内容
+- `GET /api/settings/llm`：读取脱敏后的 LLM 配置
+- `PUT /api/settings/llm`：保存 LLM 配置
+- `DELETE /api/settings/llm`：清除 UI LLM 配置
+- `POST /api/settings/llm/test`：测试 LLM 连接
 - `PUT /api/platform-contents/{id}`：更新平台内容
 - `POST /api/publish/mock`：创建模拟发布任务
 - `GET /api/publish/tasks`：查询发布记录
