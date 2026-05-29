@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, splitTags } from "@/lib/utils";
 import type { ContentType } from "@/types";
+import { FormattingControls } from "./FormattingControls";
 import { useWorkflow } from "./WorkflowProvider";
 
 const contentTypes: Array<{ value: ContentType; label: string }> = [
@@ -154,6 +155,8 @@ export function LeftPanel() {
             )}
           </div>
         </div>
+
+        <FormattingControls />
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm font-medium text-gray-800">
