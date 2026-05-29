@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   BookOpen,
+  CheckCircle2,
   CircleHelp,
   Eye,
   Loader2,
@@ -14,6 +15,7 @@ import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PreviewRenderer } from "@/components/preview/PreviewRenderer";
+import { ValidationPanel } from "@/components/preview/ValidationPanel";
 import { PLATFORM_INFOS } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { PLATFORMS, type Platform } from "@/types";
@@ -44,7 +46,7 @@ export function CenterPanel() {
           </div>
           <Button size="sm" onClick={generate} disabled={isGenerating}>
             {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            一键适配
+            生成
           </Button>
         </div>
 
@@ -94,14 +96,14 @@ export function CenterPanel() {
           <div className="grid h-full min-h-[360px] place-items-center rounded-md border border-dashed border-gray-300 bg-white text-sm text-gray-500">
             <span className="inline-flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              正在适配 {PLATFORM_INFOS[state.activePlatformTab].label}
+              正在生成 {PLATFORM_INFOS[state.activePlatformTab].label}
             </span>
           </div>
         ) : activeSlot.status === "error" ? (
           <div className="grid h-full min-h-[360px] place-items-center rounded-md border border-rose-200 bg-rose-50 px-4 text-center text-sm text-rose-700">
             <span>
               <AlertCircle className="mx-auto mb-2 h-5 w-5" />
-              {activeSlot.error ?? "适配失败，请稍后重试"}
+              {activeSlot.error ?? "生成失败，请稍后重试"}
             </span>
           </div>
         ) : activeContent ? (
@@ -110,7 +112,7 @@ export function CenterPanel() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-700">
                   <Eye className="h-4 w-4" />
-                  AI 已适配 {PLATFORM_INFOS[state.activePlatformTab].label} 版本，可继续在左侧调整原文或重新适配。
+                  AI 已生成 {PLATFORM_INFOS[state.activePlatformTab].label} 版本，可继续在左侧调整原文或重新生成。
                 </div>
                 <Badge
                   className={cn(
@@ -127,12 +129,29 @@ export function CenterPanel() {
             </div>
 
             <PreviewRenderer content={activeContent} />
+
+            <div className="rounded-md border border-gray-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-gray-950">内容检测</h3>
+                <Badge>
+                  {activeContent.validation.level === "pass" ? (
+                    <span className="inline-flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      检测完成
+                    </span>
+                  ) : (
+                    "需确认"
+                  )}
+                </Badge>
+              </div>
+              <ValidationPanel checks={activeContent.validation.checks} />
+            </div>
           </div>
         ) : (
           <div className="grid h-full min-h-[360px] place-items-center rounded-md border border-dashed border-gray-300 bg-white px-4 text-center text-sm text-gray-500">
             <span>
               <Sparkles className="mx-auto mb-2 h-5 w-5 text-gray-400" />
-              点击“一键适配”后，这里会展示公众号、知乎、B站和小红书预览。
+              生成平台版本后，这里会展示公众号、知乎、B站和小红书预览。
             </span>
           </div>
         )}

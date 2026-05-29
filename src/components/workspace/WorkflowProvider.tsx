@@ -162,7 +162,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         ...state,
         step: "adapt",
         platformContents: nextSlots,
-        statusMessage: "正在进行平台适配...",
+        statusMessage: "正在生成平台版本...",
         publishStatus: "idle"
       };
     }
@@ -181,7 +181,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         contentId: action.payload.contentId,
         platformContents: nextSlots,
         activePlatformTab: action.payload.outputs[0]?.platform ?? state.activePlatformTab,
-        statusMessage: "平台版本已适配",
+        statusMessage: "平台版本已生成",
         publishTask: null,
         publishStatus: "idle"
       };
@@ -378,7 +378,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       });
 
       if (!generateResponse.ok) {
-        throw new Error("平台适配失败");
+        throw new Error("生成平台版本失败");
       }
 
       const { outputs } = (await generateResponse.json()) as { outputs: PlatformContent[] };
@@ -386,7 +386,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       dispatch({
         type: "GENERATION_ERROR",
-        payload: error instanceof Error ? error.message : "适配失败"
+        payload: error instanceof Error ? error.message : "生成失败"
       });
     }
   }, [state.rawContent, state.settings]);
@@ -395,7 +395,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     const active = state.platformContents[state.activePlatformTab].data;
 
     if (!active) {
-      dispatch({ type: "SET_STATUS", payload: "当前平台还没有适配内容" });
+      dispatch({ type: "SET_STATUS", payload: "当前平台还没有生成内容" });
       return;
     }
 
@@ -424,7 +424,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       .filter(Boolean) as PlatformContent[];
 
     if (!state.contentId || platformContents.length === 0) {
-      dispatch({ type: "SET_STATUS", payload: "请先完成平台适配" });
+      dispatch({ type: "SET_STATUS", payload: "请先生成平台版本" });
       return;
     }
 

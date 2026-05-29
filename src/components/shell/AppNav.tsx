@@ -10,7 +10,9 @@ import {
   ChevronDown,
   FileText,
   History,
+  LayoutGrid,
   PenLine,
+  Settings,
   UserRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,13 +39,15 @@ const navItems: NavItem[] = [
     active: (pathname) => pathname === "/workspace"
   },
   { label: "新建内容", href: "/workspace?intent=new", icon: PenLine },
+  { label: "模板管理", icon: LayoutGrid },
   { label: "平台账号", icon: UserRound },
   {
     label: "发布记录",
     href: "/records",
     icon: History,
     active: (pathname) => pathname === "/records"
-  }
+  },
+  { label: "系统设置", icon: Settings }
 ];
 
 export function AppNav({
