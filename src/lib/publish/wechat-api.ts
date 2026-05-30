@@ -27,6 +27,7 @@ export type WechatDraftArticle = {
   content: string; // HTML
   content_source_url?: string;
   thumb_media_id?: string;
+  show_cover_pic?: number;
   need_open_comment?: number;
   only_fans_can_comment?: number;
 };

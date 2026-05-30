@@ -11,8 +11,10 @@ import {
 import { validatePlatformContent } from "@/lib/validators";
 import { createId } from "@/lib/utils";
 import type {
+  ImageAsset,
   Platform,
   PlatformContent,
+  PlatformImagePlan,
   PublishTask,
   RawContent,
   Step,
@@ -99,6 +101,77 @@ const initialState: WorkspaceState = {
   publishStatus: "idle"
 };
 
+function toPublishableImageAssets(images: UploadedImage[]): ImageAsset[] {
+  return images
+    .filter((image) => image.uploadStatus !== "failed" && !image.url.startsWith("blob:"))
+    .map(({ uploadStatus, localPreviewUrl, ...image }) => image);
+}
+
+function applyCoverImagesToPlatformContent(
+  content: PlatformContent,
+  coverImages: ImageAsset[]
+): PlatformContent {
+  const retainedAssets = (content.imageAssets ?? []).filter(
+    (asset) => asset.source !== "upload"
+  );
+  const imageAssets = [...coverImages, ...retainedAssets];
+  const existingPlans = content.imagePlan ?? [];
+  const nextAssetIds = new Set(imageAssets.map((asset) => asset.id));
+
+  const coverPlans: PlatformImagePlan[] = coverImages.map((asset, index) => ({
+    role: index === 0 ? "cover" : "gallery",
+    imageAssetId: asset.id,
+    order: index,
+    caption: asset.alt ?? asset.name
+  }));
+  const retainedPlans = existingPlans
+    .filter((plan) => plan.role !== "cover" && nextAssetIds.has(plan.imageAssetId))
+    .map((plan, index) => ({
+      ...plan,
+      order: coverPlans.length + index
+    }));
+  const fallbackPlan: PlatformImagePlan[] =
+    coverPlans.length === 0 && imageAssets[0]
+      ? [
+          {
+            role: "cover",
+            imageAssetId: imageAssets[0].id,
+            order: 0,
+            caption: imageAssets[0].alt ?? imageAssets[0].name
+          }
+        ]
+      : [];
+
+  return {
+    ...content,
+    imageAssets,
+    imagePlan: [...coverPlans, ...fallbackPlan, ...retainedPlans],
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function syncCoverImagesIntoReadySlots(
+  slots: Record<Platform, PlatformSlot>,
+  images: UploadedImage[]
+) {
+  const coverImages = toPublishableImageAssets(images);
+
+  return PLATFORMS.reduce((nextSlots, platform) => {
+    const slot = slots[platform];
+
+    if (!slot.data) {
+      nextSlots[platform] = slot;
+      return nextSlots;
+    }
+
+    nextSlots[platform] = {
+      ...slot,
+      data: applyCoverImagesToPlatformContent(slot.data, coverImages)
+    };
+    return nextSlots;
+  }, {} as Record<Platform, PlatformSlot>);
+}
+
 function reducer(state: WorkspaceState, action: Action): WorkspaceState {
   switch (action.type) {
     case "UPDATE_RAW":
@@ -118,45 +191,53 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
     case "REPLACE_IMAGES": {
       const tempIds = new Set(action.payload.tempIds);
       let nextImageIndex = 0;
+      const images = state.rawContent.images.flatMap((image) => {
+        if (!tempIds.has(image.id)) {
+          return [image];
+        }
+
+        const replacement = action.payload.images[nextImageIndex];
+        nextImageIndex += 1;
+        return replacement ? [replacement] : [];
+      });
 
       return {
         ...state,
         rawContent: {
           ...state.rawContent,
-          images: state.rawContent.images.flatMap((image) => {
-            if (!tempIds.has(image.id)) {
-              return [image];
-            }
-
-            const replacement = action.payload.images[nextImageIndex];
-            nextImageIndex += 1;
-            return replacement ? [replacement] : [];
-          })
-        }
+          images
+        },
+        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images)
       };
     }
     case "MARK_IMAGES_FAILED": {
       const failedIds = new Set(action.payload);
+      const images = state.rawContent.images.map((image) =>
+        failedIds.has(image.id) ? { ...image, uploadStatus: "failed" as const } : image
+      );
 
       return {
         ...state,
         rawContent: {
           ...state.rawContent,
-          images: state.rawContent.images.map((image) =>
-            failedIds.has(image.id) ? { ...image, uploadStatus: "failed" } : image
-          )
+          images
         },
+        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images),
         statusMessage: "图片上传失败，请重新选择图片"
       };
     }
-    case "REMOVE_IMAGE":
+    case "REMOVE_IMAGE": {
+      const images = state.rawContent.images.filter((image) => image.id !== action.payload);
+
       return {
         ...state,
         rawContent: {
           ...state.rawContent,
-          images: state.rawContent.images.filter((image) => image.id !== action.payload)
-        }
+          images
+        },
+        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images)
       };
+    }
     case "SET_PLATFORMS": {
       const nextPlatforms = action.payload.length ? action.payload : state.settings.platforms;
       const activePlatformTab = nextPlatforms.includes(state.activePlatformTab)
@@ -517,6 +598,10 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     const platformContents = state.settings.platforms
       .map((platform) => state.platformContents[platform].data)
       .filter(Boolean) as PlatformContent[];
+    const publishableCoverImages = toPublishableImageAssets(state.rawContent.images);
+    const platformContentsForPublish = platformContents.map((content) =>
+      applyCoverImagesToPlatformContent(content, publishableCoverImages)
+    );
 
     if (!state.contentId || platformContents.length === 0) {
       dispatch({ type: "SET_STATUS", payload: "请先完成平台适配" });
@@ -533,7 +618,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
           contentId: state.contentId,
           title: state.rawContent.title || platformContents[0].title,
           mode: "real",
-          platformContents
+          platformContents: platformContentsForPublish
         })
       });
 
@@ -550,7 +635,13 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
         payload: error instanceof Error ? error.message : "发布失败"
       });
     }
-  }, [state.contentId, state.platformContents, state.rawContent.title, state.settings.platforms]);
+  }, [
+    state.contentId,
+    state.platformContents,
+    state.rawContent.images,
+    state.rawContent.title,
+    state.settings.platforms
+  ]);
 
   const value = useMemo(
     () => ({

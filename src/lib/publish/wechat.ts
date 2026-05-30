@@ -27,6 +27,7 @@ function mapToWechatDraft(
     digest: (content.digest ?? content.summary ?? "").slice(0, 120),
     content: bodyHtml,
     thumb_media_id: coverMediaId,
+    show_cover_pic: coverMediaId ? 1 : 0,
     need_open_comment: 0,
     only_fans_can_comment: 0
   };
