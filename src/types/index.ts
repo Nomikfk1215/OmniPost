@@ -2,7 +2,7 @@ export const PLATFORMS = ["wechat", "zhihu", "xiaohongshu", "bilibili"] as const
 
 export type Platform = (typeof PLATFORMS)[number];
 
-export type StylePreset = "fresh" | "professional" | "casual";
+export type StylePreset = "casual" | "professional";
 
 export type Step = "input" | "adapt" | "preview" | "publish";
 

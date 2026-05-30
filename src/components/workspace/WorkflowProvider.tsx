@@ -82,7 +82,7 @@ const initialState: WorkspaceState = {
   },
   settings: {
     platforms: [...PLATFORMS],
-    stylePreset: "fresh",
+    stylePreset: "casual",
     formatting: {
       titleStyle: "title",
       bodyStyle: "body",

@@ -7,7 +7,7 @@ import { PLATFORMS } from "@/types";
 
 const generateSchema = z.object({
   platforms: z.array(z.enum(PLATFORMS)).min(1),
-  stylePreset: z.enum(["fresh", "professional", "casual"])
+  stylePreset: z.enum(["casual", "professional"])
 });
 
 export async function POST(

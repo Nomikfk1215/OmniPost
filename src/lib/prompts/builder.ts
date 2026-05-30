@@ -12,6 +12,17 @@ const PLATFORM_OUTPUT_GUIDANCE: Partial<Record<Platform, string>> = {
 5. 原文里的 5 条 Opus 4.8 更新可以保留为原有编号，但不要再额外拆出新层级。`
 };
 
+const STYLE_OUTPUT_GUIDANCE: Record<StylePreset, string> = {
+  casual: `轻松简约输出倾向：
+1. 语气保留作者个人感受和吐槽，但去掉明显口误、重复和过重情绪。
+2. 排版以短自然段为主，可以使用少量小标题；非 HTML 的 body 字段可使用 Markdown 小标题和加粗，但层级不要复杂。
+3. 列表只用于原文已有清单或确实需要扫读的重点，不要把所有内容都改成项目符号。`,
+  professional: `专业干货输出倾向：
+1. 语气更克制，减少口语、吐槽词和情绪化表达，但不改变原文立场。
+2. 排版要更结构化：非 HTML 的 body 字段可使用 Markdown 小标题、编号列表和 **重点加粗**，突出背景、观察、功能点、判断和结论。
+3. 保留原文细节的同时，把散乱表达整理成便于复盘的长文结构。`
+};
+
 const SHARED_SYSTEM_HEADER = `你是一个专业的多平台内容编辑助手。你的任务是将用户提供的原始内容，轻度润色、分点整理为适合指定平台发布的版本。
 
 通用规则：
@@ -51,6 +62,7 @@ export function buildPrompt(params: {
       tagRule: skill.tagRule,
       imageRule: skill.imageRule
     })}`,
+    params.platform === "xiaohongshu" ? "" : STYLE_OUTPUT_GUIDANCE[params.stylePreset],
     PLATFORM_OUTPUT_GUIDANCE[params.platform] ?? "",
     `输出字段：${JSON.stringify(skill.outputSchema)}`,
     `正文保留要求：
