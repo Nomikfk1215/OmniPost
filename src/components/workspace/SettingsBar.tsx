@@ -9,8 +9,8 @@ import { PLATFORMS, type Platform, type StylePreset } from "@/types";
 import { useWorkflow } from "./WorkflowProvider";
 
 const styleOptions: Array<{ id: StylePreset; label: string }> = [
-  { id: "professional", label: "专业干货型" },
-  { id: "casual", label: "轻松种草型" }
+  { id: "casual", label: "轻松简约" },
+  { id: "professional", label: "专业干货" }
 ];
 
 export function SettingsBar() {

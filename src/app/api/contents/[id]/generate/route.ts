@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getContentById } from "@/lib/db/contents";
 import { upsertManyPlatformContents } from "@/lib/db/platform-contents";
-import { generatePlatformContent } from "@/lib/llm/generate";
+import { generatePlatformContents, LLMGenerationError } from "@/lib/llm/generate";
 import { PLATFORMS } from "@/types";
 
 const generateSchema = z.object({
   platforms: z.array(z.enum(PLATFORMS)).min(1),
-  stylePreset: z.enum(["fresh", "professional", "casual"])
+  stylePreset: z.enum(["casual", "professional"])
 });
 
 export async function POST(
@@ -26,16 +26,20 @@ export async function POST(
     return NextResponse.json({ error: "生成参数不完整" }, { status: 400 });
   }
 
-  const outputs = await Promise.all(
-    payload.data.platforms.map((platform) =>
-      generatePlatformContent({
-        content,
-        platform,
-        stylePreset: payload.data.stylePreset
-      })
-    )
-  );
-  const saved = await upsertManyPlatformContents(outputs);
+  try {
+    const outputs = await generatePlatformContents({
+      content,
+      platforms: payload.data.platforms,
+      stylePreset: payload.data.stylePreset
+    });
+    const saved = await upsertManyPlatformContents(outputs);
 
-  return NextResponse.json({ outputs: saved });
+    return NextResponse.json({ outputs: saved });
+  } catch (error) {
+    if (error instanceof LLMGenerationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    return NextResponse.json({ error: "平台适配失败" }, { status: 500 });
+  }
 }

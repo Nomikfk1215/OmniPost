@@ -30,6 +30,7 @@ export function CenterPanel() {
   const { state, setActivePlatform, generate } = useWorkflow();
   const activeSlot = state.platformContents[state.activePlatformTab];
   const activeContent = activeSlot.data;
+  const generationLabel = activeContent?.generationSource === "mock" ? "演示内容" : "AI";
   const isGenerating = state.settings.platforms.some(
     (platform) => state.platformContents[platform].status === "loading"
   );
@@ -110,7 +111,7 @@ export function CenterPanel() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-700">
                   <Eye className="h-4 w-4" />
-                  AI 已适配 {PLATFORM_INFOS[state.activePlatformTab].label} 版本，可继续在左侧调整原文或重新适配。
+                  {generationLabel} 已适配 {PLATFORM_INFOS[state.activePlatformTab].label} 版本，可继续在左侧调整原文或重新适配。
                 </div>
                 <Badge
                   className={cn(

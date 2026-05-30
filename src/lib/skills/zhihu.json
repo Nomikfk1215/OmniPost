@@ -1,13 +1,14 @@
 {
   "platform": "zhihu",
   "displayName": "知乎",
-  "positioning": "知识问答、经验分享、理性讨论平台",
+  "positioning": "观点长文、经验分享、理性讨论平台",
   "titleRule": {
     "style": "问题式、经验式、观点清晰"
   },
   "bodyRule": {
-    "style": "逻辑清晰、分点论述、减少营销感",
-    "structure": "结论先行-原因分析-方法步骤-总结"
+    "format": "plain_text",
+    "style": "自然段落、观点完整、减少营销感，正文可以接近 B站专栏的完整叙述方式",
+    "structure": "开头结论单独放在 openingConclusion，body 保留完整正文；不要强行拆成 Markdown 小标题、多级分点或问答模板；除非原文已有编号列表，否则避免新增列表"
   },
   "tagRule": {
     "min": 2,

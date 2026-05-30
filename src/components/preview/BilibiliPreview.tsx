@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Star, ThumbsUp } from "lucide-react";
+import { MarkdownBody } from "./MarkdownBody";
 import type { PlatformContent } from "@/types";
 
 export function BilibiliPreview({ content }: { content: PlatformContent }) {
@@ -23,7 +24,9 @@ export function BilibiliPreview({ content }: { content: PlatformContent }) {
       <p className="mt-4 rounded-md bg-gray-50 p-3 text-sm leading-6 text-gray-700">
         {content.description}
       </p>
-      <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-800">{content.body}</div>
+      <div className="mt-4 text-gray-800">
+        <MarkdownBody text={content.body} variant="bilibili" />
+      </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {(content.tags ?? []).map((tag) => (
           <Badge key={tag} className="border-sky-200 bg-sky-50 text-sky-700">
