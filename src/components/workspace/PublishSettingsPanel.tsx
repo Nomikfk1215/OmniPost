@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   ExternalLink,
   Loader2,
-  Send
+  Send,
+  X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,11 +45,32 @@ export function PublishSettingsPanel() {
   const [accounts, setAccounts] = useState(defaultAccounts);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [dismissedPublishTaskId, setDismissedPublishTaskId] = useState<string | null>(null);
   const isPublishing = state.publishStatus === "publishing";
   const readyCount = state.settings.platforms.filter(
     (platform) => state.platformContents[platform].data
   ).length;
   const canPublish = readyCount > 0 && !isPublishing;
+  const publishTask = state.publishTask;
+  const publishSucceeded = publishTask?.status === "success";
+  const publishStatusText = publishTask
+    ? publishTask.status === "success"
+      ? publishTask.mode === "real"
+        ? "发布提交成功"
+        : "模拟发布成功"
+      : publishTask.status === "drafted"
+        ? "已创建草稿，需手动发布"
+      : publishTask.status === "partial"
+        ? "部分平台发布失败"
+        : "发布失败"
+    : null;
+  const firstPublishMessage = publishTask?.results.find(
+    (result) => result.message
+  )?.message;
+  const showPublishDialog =
+    Boolean(publishTask) &&
+    publishTask?.status !== "success" &&
+    dismissedPublishTaskId !== publishTask?.id;
 
   const loadAccounts = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -99,7 +122,7 @@ export function PublishSettingsPanel() {
           <div>
             <h2 className="text-sm font-semibold text-gray-950">发布设置</h2>
             <p className="text-xs text-gray-400">
-              {accountsError ? "平台账号同步失败，暂显示默认状态" : "勾选目标平台，确认后模拟发布"}
+              {accountsError ? "平台账号同步失败，暂显示默认状态" : "勾选目标平台，确认后提交发布"}
             </p>
           </div>
           <Badge className="border-gray-200 bg-white text-gray-600">
@@ -161,30 +184,175 @@ export function PublishSettingsPanel() {
             立即发布
           </Button>
           <div className="truncate text-center text-xs text-gray-500">
-            将内容模拟发布到目标平台，并生成发布记录
+            将内容提交到目标平台，并生成发布记录
           </div>
-          {state.publishTask ? (
-            <div className="rounded-md border border-emerald-200 bg-white p-2">
-              <div className="mb-2 flex items-center gap-1 text-xs font-medium text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                发布记录已生成
+          {publishTask ? (
+            <div
+              className={cn(
+                "rounded-md border bg-white p-2",
+                publishSucceeded ? "border-emerald-200" : "border-rose-200"
+              )}
+            >
+              <div
+                className={cn(
+                  "mb-2 flex items-center gap-1 text-xs font-medium",
+                  publishSucceeded ? "text-emerald-700" : "text-rose-700"
+                )}
+              >
+                {publishSucceeded ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {publishStatusText}
               </div>
+              {firstPublishMessage ? (
+                <div className="mb-2 max-h-14 overflow-auto break-all rounded bg-rose-50 px-2 py-1 text-xs leading-5 text-rose-700">
+                  {firstPublishMessage}
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-1">
-                {state.publishTask.results.slice(0, 4).map((result) => (
-                  <Link
-                    key={result.id}
-                    href={result.url}
-                    className="inline-flex h-7 items-center justify-between rounded bg-emerald-50 px-2 text-xs text-emerald-800 hover:bg-emerald-100"
-                  >
-                    {PLATFORM_INFOS[result.platform].shortLabel}
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                ))}
+                {publishTask.results.slice(0, 4).map((result) => {
+                  const itemClass = cn(
+                    "inline-flex h-7 items-center justify-between rounded px-2 text-xs",
+                    result.status === "success"
+                      ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      : result.status === "drafted"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-rose-50 text-rose-700"
+                  );
+                  const label = PLATFORM_INFOS[result.platform].shortLabel;
+
+                  return result.url ? (
+                    <Link key={result.id} href={result.url} className={itemClass}>
+                      {label}
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  ) : (
+                    <span key={result.id} className={itemClass} title={result.message ?? "发布失败"}>
+                      {label}
+                      <span>
+                        {result.status === "success"
+                          ? "成功"
+                          : result.status === "drafted"
+                            ? "草稿"
+                            : "失败"}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ) : null}
         </div>
       </div>
+
+      {publishTask && showPublishDialog ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-gray-950/45 px-4 py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publish-result-title"
+            className="w-full max-w-2xl rounded-md bg-white shadow-2xl"
+          >
+            <div className="flex items-start gap-3 border-b border-gray-100 px-5 py-4">
+              <span
+                className={cn(
+                  "mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full",
+                  publishTask.status === "drafted"
+                    ? "bg-amber-50 text-amber-600"
+                    : "bg-rose-50 text-rose-600"
+                )}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 id="publish-result-title" className="text-base font-semibold text-gray-950">
+                  {publishStatusText}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-gray-500">
+                  {publishTask.status === "drafted"
+                    ? "公众号草稿已创建，但当前接口权限不允许 API 直接发布。请到公众号后台完成发布。"
+                    : "微信接口已返回明确错误，发布未完成。请按下方原因处理后重新发布。"}
+                </p>
+              </div>
+              <button
+                type="button"
+                title="关闭"
+                onClick={() => setDismissedPublishTaskId(publishTask.id)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-950"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[58vh] overflow-auto px-5 py-4">
+              <div className="space-y-3">
+                {publishTask.results.map((result) => (
+                  <div
+                    key={result.id}
+                    className={cn(
+                      "rounded-md border p-3",
+                      result.status === "success"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : result.status === "drafted"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-rose-200 bg-rose-50"
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-950">
+                        {PLATFORM_INFOS[result.platform].label}
+                      </span>
+                      <Badge
+                        className={
+                          result.status === "success"
+                            ? "border-emerald-200 bg-white text-emerald-700"
+                            : result.status === "drafted"
+                              ? "border-amber-200 bg-white text-amber-700"
+                              : "border-rose-200 bg-white text-rose-700"
+                        }
+                      >
+                        {result.status === "success"
+                          ? "成功"
+                          : result.status === "drafted"
+                            ? "已生成草稿"
+                            : "失败"}
+                      </Badge>
+                    </div>
+                    {result.message ? (
+                      <pre
+                        className={cn(
+                          "mt-3 whitespace-pre-wrap break-all rounded bg-white px-3 py-2 text-xs leading-5",
+                          result.status === "drafted" ? "text-amber-700" : "text-rose-700"
+                        )}
+                      >
+                        {result.message}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-5 py-4">
+              <Button
+                variant="secondary"
+                onClick={() => setDismissedPublishTaskId(publishTask.id)}
+              >
+                关闭
+              </Button>
+              <Link
+                href="/records"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-sm font-medium text-white transition hover:bg-gray-800"
+              >
+                查看发布记录
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

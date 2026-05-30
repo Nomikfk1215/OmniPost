@@ -81,7 +81,7 @@ export async function submitPublish(
         platformContentId: response.platformContentId,
         status: response.status,
         url: response.url,
-        message: response.error
+        message: response.error ?? response.message
       });
     } else {
       // Mock 模式
@@ -97,13 +97,17 @@ export async function submitPublish(
 
   // 聚合状态
   const successCount = results.filter((r) => r.status === "success").length;
+  const draftedCount = results.filter((r) => r.status === "drafted").length;
+  const failedCount = results.filter((r) => r.status === "failed").length;
   const totalCount = results.length;
   const status =
     successCount === totalCount
       ? "success"
-      : successCount === 0
-        ? "failed"
-        : "partial";
+      : draftedCount === totalCount
+        ? "drafted"
+        : failedCount === totalCount
+          ? "failed"
+          : "partial";
 
   const task: PublishTask = {
     id: taskId,
