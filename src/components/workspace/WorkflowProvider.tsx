@@ -269,7 +269,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
       return {
         ...state,
         publishStatus: "publishing",
-        statusMessage: "正在模拟发布..."
+        statusMessage: "正在发布..."
       };
     case "PUBLISH_SUCCESS":
       return {
@@ -509,18 +509,20 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "PUBLISH_START" });
 
     try {
-      const response = await fetch("/api/publish/mock", {
+      const response = await fetch("/api/publish/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contentId: state.contentId,
           title: state.rawContent.title || platformContents[0].title,
+          mode: "real",
           platformContents
         })
       });
 
       if (!response.ok) {
-        throw new Error("模拟发布失败");
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "发布失败");
       }
 
       const { task } = (await response.json()) as { task: PublishTask };
@@ -528,7 +530,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       dispatch({
         type: "PUBLISH_ERROR",
-        payload: error instanceof Error ? error.message : "模拟发布失败"
+        payload: error instanceof Error ? error.message : "发布失败"
       });
     }
   }, [state.contentId, state.platformContents, state.rawContent.title, state.settings.platforms]);

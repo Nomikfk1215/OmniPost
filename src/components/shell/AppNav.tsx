@@ -11,7 +11,8 @@ import {
   FileText,
   History,
   PenLine,
-  Settings
+  Settings,
+  UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,16 +39,22 @@ const navItems: NavItem[] = [
   },
   { label: "新建内容", href: "/workspace?intent=new", icon: PenLine },
   {
-    label: "系统设置",
-    href: "/settings",
-    icon: Settings,
-    active: (pathname) => pathname === "/settings"
+    label: "平台账号",
+    href: "/accounts",
+    icon: UserCheck,
+    active: (pathname) => pathname === "/accounts"
   },
   {
     label: "发布记录",
     href: "/records",
     icon: History,
     active: (pathname) => pathname === "/records"
+  },
+  {
+    label: "系统设置",
+    href: "/settings",
+    icon: Settings,
+    active: (pathname) => pathname === "/settings"
   }
 ];
 
