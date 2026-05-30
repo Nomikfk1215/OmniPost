@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Bold,
   ChevronDown,
@@ -53,6 +53,26 @@ export function LeftPanel() {
   const { state, updateRaw, addImages, removeImage, loadSample } = useWorkflow();
   const [tagDraft, setTagDraft] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Cursor tracking & undo/redo
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const cursorRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const MAX_HISTORY = 50;
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  function pushUndo(body: string) {
+    undoStackRef.current.push(body);
+    if (undoStackRef.current.length > MAX_HISTORY) {
+      undoStackRef.current.shift();
+    }
+    redoStackRef.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+  }
+
   const coverImage = state.rawContent.images[0];
   const wordCount = useMemo(
     () => state.rawContent.body.replace(/\s/g, "").length,
@@ -60,8 +80,56 @@ export function LeftPanel() {
   );
 
   function insertSnippet(snippet: string) {
-    const prefix = state.rawContent.body.trim() ? "\n\n" : "";
-    updateRaw({ body: `${state.rawContent.body}${prefix}${snippet}` });
+    const textarea = textAreaRef.current;
+    const body = state.rawContent.body;
+
+    // Determine cursor position. Prefer live textarea state, fall back to tracked position.
+    const { start, end } = textarea
+      ? { start: textarea.selectionStart, end: textarea.selectionEnd }
+      : cursorRef.current;
+
+    // If no cursor position available, fall back to appending at end
+    const noValidCursor = start === 0 && end === 0 && body.length > 0 && !textarea;
+    if (noValidCursor) {
+      const prefix = body.trim() ? "\n\n" : "";
+      const newBody = `${body}${prefix}${snippet}`;
+      pushUndo(body);
+      updateRaw({ body: newBody });
+      return;
+    }
+
+    const newBody = body.slice(0, start) + snippet + body.slice(end);
+    const newCursorPos = start + snippet.length;
+
+    pushUndo(body);
+    updateRaw({ body: newBody });
+
+    // Restore cursor after React re-render
+    requestAnimationFrame(() => {
+      const el = textAreaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    });
+  }
+
+  function handleUndo() {
+    if (undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current.pop()!;
+    redoStackRef.current.push(state.rawContent.body);
+    updateRaw({ body: prev });
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(true);
+  }
+
+  function handleRedo() {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    undoStackRef.current.push(state.rawContent.body);
+    updateRaw({ body: next });
+    setCanRedo(redoStackRef.current.length > 0);
+    setCanUndo(true);
   }
 
   function addTagsFromDraft() {
@@ -261,23 +329,44 @@ export function LeftPanel() {
               <button
                 type="button"
                 title="撤销"
-                disabled
-                className="grid h-8 w-8 place-items-center rounded text-gray-300"
+                disabled={!canUndo}
+                onClick={handleUndo}
+                className={`grid h-8 w-8 place-items-center rounded transition ${
+                  canUndo ? "text-gray-600 hover:bg-white hover:text-gray-950" : "text-gray-300"
+                }`}
               >
                 <Undo2 className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 title="重做"
-                disabled
-                className="grid h-8 w-8 place-items-center rounded text-gray-300"
+                disabled={!canRedo}
+                onClick={handleRedo}
+                className={`grid h-8 w-8 place-items-center rounded transition ${
+                  canRedo ? "text-gray-600 hover:bg-white hover:text-gray-950" : "text-gray-300"
+                }`}
               >
                 <Redo2 className="h-4 w-4" />
               </button>
             </div>
             <Textarea
+              ref={textAreaRef}
               value={state.rawContent.body}
               onChange={(event) => updateRaw({ body: event.target.value })}
+              onBlur={(event) => {
+                const target = event.target as HTMLTextAreaElement;
+                cursorRef.current = { start: target.selectionStart, end: target.selectionEnd };
+                // Push snapshot to undo stack on blur
+                const body = state.rawContent.body;
+                const lastUndo = undoStackRef.current[undoStackRef.current.length - 1];
+                if (lastUndo !== body) {
+                  pushUndo(body);
+                }
+              }}
+              onSelect={(event) => {
+                const target = event.target as HTMLTextAreaElement;
+                cursorRef.current = { start: target.selectionStart, end: target.selectionEnd };
+              }}
               placeholder="粘贴文章、笔记、脚本或活动文案..."
               className="min-h-[230px] resize-none border-0 focus:border-0 focus:ring-0"
             />

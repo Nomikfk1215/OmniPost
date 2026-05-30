@@ -53,21 +53,40 @@ export async function enrichPlatformImages(
     return platformContent;
   }
 
+  // Separate markdown (inline) images from cover/gallery assets
+  const markdownAssets = imageAssets.filter((a) => a.source === "markdown");
+  const nonMarkdownAssets = imageAssets.filter((a) => a.source !== "markdown");
+
+  // Build inline plans from markdown images
+  const inlinePlans: PlatformImagePlan[] = markdownAssets.map((asset, index) => ({
+    role: "inline",
+    imageAssetId: asset.id,
+    order: index,
+    caption: asset.alt ?? asset.name
+  }));
+
   if (platformContent.platform !== "xiaohongshu") {
+    // Non-xiaohongshu: cover plan from first non-markdown asset + inline plans
     return {
       ...platformContent,
       imageAssets,
-      imagePlan: imageAssets[0] ? [buildCoverPlan(imageAssets[0])] : undefined
+      imagePlan: [
+        ...(nonMarkdownAssets[0] ? [buildCoverPlan(nonMarkdownAssets[0])] : []),
+        ...inlinePlans
+      ]
     };
   }
+
+  // Xiaohongshu: gallery plans from non-markdown assets + inline plans
+  const galleryPlans = buildXiaohongshuPlan({
+    title: platformContent.title,
+    assets: nonMarkdownAssets.length > 0 ? nonMarkdownAssets : markdownAssets,
+    imageSuggestions: platformContent.imageSuggestions
+  });
 
   return {
     ...platformContent,
     imageAssets,
-    imagePlan: buildXiaohongshuPlan({
-      title: platformContent.title,
-      assets: imageAssets,
-      imageSuggestions: platformContent.imageSuggestions
-    })
+    imagePlan: [...galleryPlans, ...inlinePlans]
   };
 }

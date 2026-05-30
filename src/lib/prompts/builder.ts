@@ -1,5 +1,5 @@
 import { loadStylePreset } from "@/lib/presets";
-import { normalizeImageAssets } from "@/lib/images/assets";
+import { normalizeImageAssets, extractImagePositions } from "@/lib/images/assets";
 import { loadPlatformSkill } from "@/lib/skills/registry";
 import type { ContentBrief } from "@/lib/llm/schemas";
 import type { Content, Platform, StylePreset } from "@/types";
@@ -50,19 +50,50 @@ export function buildPrompt(params: {
   const skill = loadPlatformSkill(params.platform);
   const preset = loadStylePreset(params.stylePreset);
   const systemPrompt = [SHARED_SYSTEM_HEADER, skill.positioning, preset.fragment].join("\n\n");
-  const imageAssets = normalizeImageAssets(params.content.images).map((image) => ({
+  const allImageAssets = normalizeImageAssets(params.content.images).map((image) => ({
     id: image.id,
     source: image.source,
     name: image.name,
     url: image.url,
     alt: image.alt
   }));
+
+  // Separate inline (markdown) images from the asset pool
+  const markdownImages = allImageAssets.filter((img) => img.source === "markdown");
+  const uploadImages = allImageAssets.filter((img) => img.source !== "markdown");
+
+  // Attach position context to markdown images
+  const positions = extractImagePositions(params.content.rawText);
+  const positionMap = new Map(positions.map((p) => [p.url, p]));
+  const markdownWithContext = markdownImages.map((img) => ({
+    ...img,
+    position: positionMap.get(img.url) ?? null
+  }));
+
+  // Build the image context for the prompt
+  const imageSections: string[] = [];
+
+  if (markdownWithContext.length > 0) {
+    imageSections.push(
+      `正文中已嵌入的内联图片（这些图片已通过 Markdown ![]() 放置在原文特定位置。适配到当前平台时，请在对应的段落位置附近保留这些图片及其配图关系。对于输出 html 的平台，使用 <img> 标签；对于输出 body 文本的平台，使用 ![]() 语法。务必保留原文的配图与文字的对应关系，不要在内容模型中删除这些配图）：\n${JSON.stringify(markdownWithContext, null, 2)}`
+    );
+  }
+
+  if (uploadImages.length > 0) {
+    imageSections.push(
+      `用户上传的额外图片资产（可用于封面、额外配图或正文插图，返回内容时不要改写 url）：\n${JSON.stringify(uploadImages, null, 2)}`
+    );
+  }
+
+  const imageSection =
+    imageSections.length > 0
+      ? imageSections.join("\n\n")
+      : "当前没有可用图片资产；如平台需要图片，请先输出具体 imageSuggestions，系统会据此自动生成卡片图。";
+
   const userMessage = [
     params.content.title ? `原标题：${params.content.title}` : "",
     `正文：\n${params.content.rawText}`,
-    imageAssets?.length
-      ? `可用图片资产（可用于封面、多图或正文配图，返回内容时不要改写 url）：\n${JSON.stringify(imageAssets, null, 2)}`
-      : "当前没有可用图片资产；如平台需要图片，请先输出具体 imageSuggestions，系统会据此自动生成卡片图。",
+    imageSection,
     params.content.userTags?.length ? `用户标签：${params.content.userTags.join("、")}` : "",
     params.brief
       ? `内容理解摘要（用于保留信息，不要当作新事实扩写）：\n${JSON.stringify(params.brief, null, 2)}`

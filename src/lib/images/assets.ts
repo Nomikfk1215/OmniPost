@@ -5,6 +5,13 @@ type ImageInput = ImageAsset | string;
 
 const markdownImagePattern = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
+export type ImagePosition = {
+  url: string;
+  alt: string;
+  lineIndex: number;
+  context: string;
+};
+
 function getNameFromUrl(url: string) {
   try {
     const parsed = new URL(url);
@@ -43,6 +50,49 @@ export function extractMarkdownImageAssets(rawText: string, now = new Date().toI
   }
 
   return images;
+}
+
+export function extractImagePositions(rawText: string): ImagePosition[] {
+  const lines = rawText.split("\n");
+  const results: ImagePosition[] = [];
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const pattern = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(lines[lineIndex]))) {
+      const [, alt = "", url = ""] = match;
+      const cleanUrl = url.trim();
+
+      if (!cleanUrl) {
+        continue;
+      }
+
+      // Collect surrounding text lines (1 before, 1 after) as context
+      const contextLines: string[] = [];
+      if (lineIndex > 0) {
+        const before = lines[lineIndex - 1].trim();
+        if (before && !/^!\[.*\]\(.*\)$/.test(before)) {
+          contextLines.push(before);
+        }
+      }
+      if (lineIndex < lines.length - 1) {
+        const after = lines[lineIndex + 1].trim();
+        if (after && !/^!\[.*\]\(.*\)$/.test(after)) {
+          contextLines.push(after);
+        }
+      }
+
+      results.push({
+        url: cleanUrl,
+        alt: alt.trim(),
+        lineIndex,
+        context: contextLines.join(" | ").slice(0, 200)
+      });
+    }
+  }
+
+  return results;
 }
 
 export function normalizeImageAssets(images: ImageInput[] | undefined, now = new Date().toISOString()) {
