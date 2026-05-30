@@ -23,17 +23,43 @@ export type RawContent = {
   userTags: string[];
 };
 
-export type UploadedImage = {
+export type ImageAssetSource = "upload" | "markdown" | "generated" | "search";
+
+export type ImageAsset = {
   id: string;
+  source: ImageAssetSource;
   name: string;
   url: string;
+  fileName?: string;
+  mimeType?: string;
+  width?: number;
+  height?: number;
+  size?: number;
+  alt?: string;
+  prompt?: string;
+  searchQuery?: string;
+  attribution?: string;
+  createdAt: string;
+};
+
+export type UploadedImage = ImageAsset & {
+  uploadStatus?: "local" | "uploaded" | "failed";
+  localPreviewUrl?: string;
+};
+
+export type PlatformImagePlan = {
+  role: "cover" | "gallery" | "inline" | "meme";
+  imageAssetId: string;
+  order: number;
+  title?: string;
+  caption?: string;
 };
 
 export type Content = {
   id: string;
   title?: string;
   rawText: string;
-  images: string[];
+  images: ImageAsset[];
   userTags?: string[];
   createdAt: string;
   updatedAt: string;
@@ -47,7 +73,7 @@ export type UnifiedContent = {
     type: "heading" | "paragraph" | "image";
     content: string;
   }>;
-  images: string[];
+  images: ImageAsset[];
   tags: string[];
 };
 
@@ -80,6 +106,8 @@ export type PlatformContent = {
   html?: string;
   tags?: string[];
   imageSuggestions?: string[];
+  imageAssets?: ImageAsset[];
+  imagePlan?: PlatformImagePlan[];
   coverSuggestion?: string;
   interactionGuide?: string;
   categorySuggestion?: string;

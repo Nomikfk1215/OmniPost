@@ -2,6 +2,7 @@ import { buildPrompt } from "@/lib/prompts/builder";
 import { loadStylePreset } from "@/lib/presets";
 import { createId } from "@/lib/utils";
 import { getRuntimeLLMConfig, type RuntimeLLMConfig } from "@/lib/llm/settings-store";
+import { enrichPlatformImages } from "@/lib/images/planning";
 import {
   contentBriefSchema,
   platformOutputSchemas,
@@ -244,11 +245,13 @@ async function generateViaOpenAICompatible(
     `${platform} 平台适配`
   )) as Record<string, unknown>;
 
-  return makePlatformContent({
+  const generated = makePlatformContent({
     content,
     platform,
     parsed
   });
+
+  return enrichPlatformImages(content, generated);
 }
 
 export async function generatePlatformContents(params: {

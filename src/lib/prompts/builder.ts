@@ -1,4 +1,5 @@
 import { loadStylePreset } from "@/lib/presets";
+import { normalizeImageAssets } from "@/lib/images/assets";
 import { loadPlatformSkill } from "@/lib/skills/registry";
 import type { ContentBrief } from "@/lib/llm/schemas";
 import type { Content, Platform, StylePreset } from "@/types";
@@ -48,9 +49,19 @@ export function buildPrompt(params: {
   const skill = loadPlatformSkill(params.platform);
   const preset = loadStylePreset(params.stylePreset);
   const systemPrompt = [SHARED_SYSTEM_HEADER, skill.positioning, preset.fragment].join("\n\n");
+  const imageAssets = normalizeImageAssets(params.content.images).map((image) => ({
+    id: image.id,
+    source: image.source,
+    name: image.name,
+    url: image.url,
+    alt: image.alt
+  }));
   const userMessage = [
     params.content.title ? `原标题：${params.content.title}` : "",
     `正文：\n${params.content.rawText}`,
+    imageAssets?.length
+      ? `可用图片资产（可用于封面、多图或正文配图，返回内容时不要改写 url）：\n${JSON.stringify(imageAssets, null, 2)}`
+      : "当前没有可用图片资产；如平台需要图片，请先输出具体 imageSuggestions，系统会据此自动生成卡片图。",
     params.content.userTags?.length ? `用户标签：${params.content.userTags.join("、")}` : "",
     params.brief
       ? `内容理解摘要（用于保留信息，不要当作新事实扩写）：\n${JSON.stringify(params.brief, null, 2)}`
