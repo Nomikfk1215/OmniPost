@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPlatformContentById, upsertPlatformContent } from "@/lib/db/platform-contents";
+import { imageAssetSchema, platformImagePlanSchema } from "@/lib/images/schemas";
 
 const updatePlatformContentSchema = z.object({
   title: z.string().optional(),
@@ -12,6 +13,8 @@ const updatePlatformContentSchema = z.object({
   html: z.string().optional(),
   tags: z.array(z.string()).optional(),
   imageSuggestions: z.array(z.string()).optional(),
+  imageAssets: z.array(imageAssetSchema).optional(),
+  imagePlan: z.array(platformImagePlanSchema).optional(),
   coverSuggestion: z.string().optional(),
   interactionGuide: z.string().optional(),
   categorySuggestion: z.string().optional()

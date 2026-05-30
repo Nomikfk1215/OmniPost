@@ -21,9 +21,8 @@ import type { StylePreset, WorkspaceFormatting } from "@/types";
 import { useWorkflow } from "./WorkflowProvider";
 
 const styleOptions: Array<{ id: StylePreset; label: string }> = [
-  { id: "fresh", label: "清新简约" },
-  { id: "professional", label: "专业干货" },
-  { id: "casual", label: "轻松种草" }
+  { id: "casual", label: "轻松简约" },
+  { id: "professional", label: "专业干货" }
 ];
 
 const titleOptions: Array<{ id: WorkspaceFormatting["titleStyle"]; label: string; icon: LucideIcon }> = [
@@ -118,7 +117,7 @@ export function StylePresetSelector() {
           {STYLE_PRESETS[state.settings.stylePreset].label}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {styleOptions.map((style) => (
           <button
             key={style.id}

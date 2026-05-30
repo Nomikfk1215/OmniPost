@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp } from "lucide-react";
+import { MarkdownBody } from "./MarkdownBody";
 import type { PlatformContent } from "@/types";
 
 export function ZhihuPreview({ content }: { content: PlatformContent }) {
@@ -15,7 +16,9 @@ export function ZhihuPreview({ content }: { content: PlatformContent }) {
       <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm leading-6 text-blue-900">
         {content.openingConclusion}
       </p>
-      <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-800">{content.body}</div>
+      <div className="mt-4 text-gray-800">
+        <MarkdownBody text={content.body} variant="zhihu" />
+      </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {(content.tags ?? []).map((tag) => (
           <Badge key={tag} className="border-blue-200 bg-blue-50 text-blue-700">

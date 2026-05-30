@@ -51,6 +51,16 @@ async function readSafeError(response: Response) {
   }
 }
 
+function makeNonJsonMessage(raw: string) {
+  const snippet = raw.replace(/\s+/g, " ").trim().slice(0, 180);
+  return `接口返回的不是 OpenAI 兼容 JSON，请检查 API 地址是否正确（通常需要以 /v1 结尾）${snippet ? `：${snippet}` : ""}`;
+}
+
+function makeInvalidSchemaMessage(raw: string) {
+  const snippet = raw.replace(/\s+/g, " ").trim().slice(0, 180);
+  return `接口返回缺少 choices/message 字段，请确认模型和接口兼容 OpenAI Chat Completions${snippet ? `：${snippet}` : ""}`;
+}
+
 export async function POST(request: Request) {
   const payload = testSchema.safeParse(await request.json().catch(() => ({})));
 
@@ -87,6 +97,33 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const message = `HTTP ${response.status} ${await readSafeError(response)}`.trim();
+
+      if (config.shouldPersistStatus) {
+        await updateLLMConnectionStatus({ ok: false, testedAt, error: message });
+      }
+
+      return NextResponse.json({ ok: false, latencyMs, testedAt, error: message }, { status: 502 });
+    }
+
+    const raw = await response.text();
+    let responseJson: {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    try {
+      responseJson = JSON.parse(raw) as typeof responseJson;
+    } catch {
+      const message = makeNonJsonMessage(raw);
+
+      if (config.shouldPersistStatus) {
+        await updateLLMConnectionStatus({ ok: false, testedAt, error: message });
+      }
+
+      return NextResponse.json({ ok: false, latencyMs, testedAt, error: message }, { status: 502 });
+    }
+
+    if (!Array.isArray(responseJson.choices) || !responseJson.choices[0]?.message) {
+      const message = makeInvalidSchemaMessage(raw);
 
       if (config.shouldPersistStatus) {
         await updateLLMConnectionStatus({ ok: false, testedAt, error: message });

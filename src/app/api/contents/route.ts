@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createContent } from "@/lib/db/contents";
+import { imageInputSchema } from "@/lib/images/schemas";
 
 const createContentSchema = z.object({
   title: z.string().optional(),
   rawText: z.string().min(1),
-  images: z.array(z.string()).optional(),
+  images: z.array(imageInputSchema).optional(),
   userTags: z.array(z.string()).optional()
 });
 
