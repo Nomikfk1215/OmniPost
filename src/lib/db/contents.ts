@@ -1,11 +1,12 @@
 import { createId } from "@/lib/utils";
+import { collectContentImages } from "@/lib/images/assets";
 import type { Content } from "@/types";
 import { readStore, writeStore } from "./json-store";
 
 export async function createContent(input: {
   title?: string;
   rawText: string;
-  images?: string[];
+  images?: Array<Content["images"][number] | string>;
   userTags?: string[];
 }) {
   const now = new Date().toISOString();
@@ -13,7 +14,10 @@ export async function createContent(input: {
     id: createId("content"),
     title: input.title,
     rawText: input.rawText,
-    images: input.images ?? [],
+    images: collectContentImages({
+      rawText: input.rawText,
+      images: input.images
+    }),
     userTags: input.userTags ?? [],
     createdAt: now,
     updatedAt: now
