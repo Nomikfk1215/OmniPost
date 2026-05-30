@@ -3,6 +3,15 @@ import { loadPlatformSkill } from "@/lib/skills/registry";
 import type { ContentBrief } from "@/lib/llm/schemas";
 import type { Content, Platform, StylePreset } from "@/types";
 
+const PLATFORM_OUTPUT_GUIDANCE: Partial<Record<Platform, string>> = {
+  zhihu: `知乎正文特别规则：
+1. body 使用纯文本自然段，不要输出 Markdown 标题符号（例如 ##）、加粗符号（例如 **）或项目符号模板。
+2. 不要为了“知乎感”强行分点。除非原文自己有编号列表，否则优先用完整段落承接。
+3. 正文风格可以接近 B站专栏：完整保留原文顺序和细节，只把语气稍微调得理性一点。
+4. openingConclusion 已经承载结论，body 不要再写成“关于 Gemini / 关于 Claude”这类模板化提纲。
+5. 原文里的 5 条 Opus 4.8 更新可以保留为原有编号，但不要再额外拆出新层级。`
+};
+
 const SHARED_SYSTEM_HEADER = `你是一个专业的多平台内容编辑助手。你的任务是将用户提供的原始内容，轻度润色、分点整理为适合指定平台发布的版本。
 
 通用规则：
@@ -42,6 +51,7 @@ export function buildPrompt(params: {
       tagRule: skill.tagRule,
       imageRule: skill.imageRule
     })}`,
+    PLATFORM_OUTPUT_GUIDANCE[params.platform] ?? "",
     `输出字段：${JSON.stringify(skill.outputSchema)}`,
     `正文保留要求：
 1. 正文/html 需要承载原文主要信息，不要只输出摘要或结论。

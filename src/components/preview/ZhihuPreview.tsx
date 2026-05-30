@@ -2,6 +2,35 @@ import { Badge } from "@/components/ui/badge";
 import { ThumbsUp } from "lucide-react";
 import type { PlatformContent } from "@/types";
 
+function cleanMarkdownText(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
+function renderZhihuBody(body: string) {
+  return body.split(/\r?\n/).map((line, index) => {
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    const cleaned = cleanMarkdownText(heading?.[1] ?? line);
+
+    if (!cleaned) {
+      return <div key={index} className="h-3" />;
+    }
+
+    if (heading) {
+      return (
+        <p key={index} className="mt-5 font-semibold text-gray-950 first:mt-0">
+          {cleaned}
+        </p>
+      );
+    }
+
+    return <p key={index}>{cleaned}</p>;
+  });
+}
+
 export function ZhihuPreview({ content }: { content: PlatformContent }) {
   return (
     <article className="mx-auto max-w-[500px] rounded-md border border-gray-200 bg-white p-5 shadow-panel">
@@ -15,7 +44,9 @@ export function ZhihuPreview({ content }: { content: PlatformContent }) {
       <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm leading-6 text-blue-900">
         {content.openingConclusion}
       </p>
-      <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-800">{content.body}</div>
+      <div className="mt-4 space-y-2 text-sm leading-7 text-gray-800">
+        {renderZhihuBody(content.body)}
+      </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {(content.tags ?? []).map((tag) => (
           <Badge key={tag} className="border-blue-200 bg-blue-50 text-blue-700">
