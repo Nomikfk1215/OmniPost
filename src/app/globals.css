@@ -2,7 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ── */
 :root {
+  --canvas: #ffffff;
+  --canvas-warm: #faf9f7;
+  --ink: #171717;
+  --ink-soft: #3d3833;
+  --ink-muted: #6b6560;
+  --coral: #ff5c3c;
+  --coral-dark: #e0452a;
+  --coral-pale: #ffeee8;
   color-scheme: light;
 }
 
@@ -12,8 +21,10 @@
 
 body {
   margin: 0;
-  background: #f6f7f9;
-  color: #1f2937;
+  background: #ffffff;
+  color: #171717;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -24,10 +35,11 @@ select {
 }
 
 ::selection {
-  background: #bae6fd;
-  color: #0f172a;
+  background: #ffeee8;
+  color: #171717;
 }
 
+/* ── App panel (existing) ── */
 .panel {
   border: 1px solid #e5e7eb;
   background: #ffffff;
@@ -37,4 +49,258 @@ select {
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ── Scroll reveal utilities ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-stagger.is-visible > *:nth-child(1) {
+  transition-delay: 0ms;
+}
+.reveal-stagger.is-visible > *:nth-child(2) {
+  transition-delay: 80ms;
+}
+.reveal-stagger.is-visible > *:nth-child(3) {
+  transition-delay: 160ms;
+}
+.reveal-stagger.is-visible > *:nth-child(4) {
+  transition-delay: 240ms;
+}
+.reveal-stagger.is-visible > *:nth-child(5) {
+  transition-delay: 320ms;
+}
+.reveal-stagger.is-visible > *:nth-child(6) {
+  transition-delay: 400ms;
+}
+.reveal-stagger.is-visible > *:nth-child(n) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Editorial link style ── */
+.editorial-link {
+  color: var(--coral);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.editorial-link:hover {
+  color: var(--coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+
+/* ── Gradient text utility ── */
+.gradient-text {
+  background: linear-gradient(135deg, #ff5c3c 0%, #ff2442 50%, #e0452a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Shimmer button effect ── */
+.shimmer-btn {
+  background: linear-gradient(
+    110deg,
+    #ff5c3c 0%,
+    #ff5c3c 40%,
+    #ff9b85 50%,
+    #ff5c3c 60%,
+    #ff5c3c 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* ── Code block styling for docs ── */
+.docs-prose pre {
+  background: #1a1a1a;
+  color: #e0d8cc;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin: 1.5rem 0;
+  border: 1px solid #e5e0d8;
+}
+
+.docs-prose code {
+  font-family: var(--font-mono), Menlo, monospace;
+  font-size: 0.875em;
+}
+
+.docs-prose :not(pre) > code {
+  background: #fff5f2;
+  color: #e0452a;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.docs-prose p {
+  line-height: 1.85;
+  margin: 1rem 0;
+  color: #3d3833;
+}
+
+.docs-prose h2 {
+  font-family: var(--font-display), "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: #171717;
+  letter-spacing: -0.01em;
+}
+
+.docs-prose h3 {
+  font-family: var(--font-display), "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: #171717;
+}
+
+.docs-prose h4 {
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #3d3833;
+}
+
+.docs-prose ul,
+.docs-prose ol {
+  padding-left: 1.5rem;
+  line-height: 1.85;
+  color: #3d3833;
+}
+
+.docs-prose li {
+  margin: 0.4rem 0;
+}
+
+.docs-prose a {
+  color: #ff5c3c;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.docs-prose a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.docs-prose blockquote {
+  border-left: 3px solid #ff5c3c;
+  margin: 1.5rem 0;
+  padding: 0.75rem 1.25rem;
+  background: #fffaf8;
+  border-radius: 0 8px 8px 0;
+  color: #6b6560;
+}
+
+.docs-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.docs-prose th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: #faf9f7;
+  border-bottom: 2px solid #e5e0d8;
+  font-weight: 600;
+  color: #171717;
+}
+
+.docs-prose td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0eeea;
+  color: #3d3833;
+}
+
+.docs-prose hr {
+  border: none;
+  border-top: 1px solid #f0eeea;
+  margin: 2rem 0;
+}
+
+.docs-prose strong {
+  color: #171717;
+  font-weight: 600;
+}
+
+/* ── Step indicator for docs ── */
+.docs-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ff5c3c;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ── Tip/warning callout boxes for docs ── */
+.docs-callout {
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.docs-callout.tip {
+  background: #f0faf4;
+  border: 1px solid #b8e6cc;
+  color: #1a5c34;
+}
+
+.docs-callout.warning {
+  background: #fff8f0;
+  border: 1px solid #f0d8b0;
+  color: #7a4e1a;
+}
+
+.docs-callout.info {
+  background: #f0f5ff;
+  border: 1px solid #c0d4f8;
+  color: #1a3d7a;
 }

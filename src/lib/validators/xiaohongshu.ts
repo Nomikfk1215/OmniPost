@@ -4,6 +4,8 @@ import { buildValidationResult, hasEmoji, makeCheck } from "./shared";
 export function validateXiaohongshu(content: PlatformContent): ValidationResult {
   const tags = content.tags ?? [];
   const imageSuggestions = content.imageSuggestions ?? [];
+  const imageAssets = content.imageAssets ?? [];
+  const imagePlan = content.imagePlan ?? [];
   const checks = [
     makeCheck(
       "xhs-title",
@@ -32,8 +34,10 @@ export function validateXiaohongshu(content: PlatformContent): ValidationResult 
     ),
     makeCheck(
       "xhs-image",
-      imageSuggestions.length > 0 ? "pass" : "warning",
-      imageSuggestions.length > 0 ? "已有图片建议" : "建议补充 3:4 封面或卡片图建议"
+      imageSuggestions.length > 0 || imageAssets.length > 0 || imagePlan.length > 0 ? "pass" : "warning",
+      imageAssets.length > 0 || imagePlan.length > 0
+        ? "已有可用图片资产或多图计划"
+        : "建议补充 3:4 封面或卡片图建议"
     ),
     makeCheck(
       "xhs-emoji",

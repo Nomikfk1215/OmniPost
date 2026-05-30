@@ -117,26 +117,32 @@
 
   <!-- Title text -->
   <text x="50" y="210" font-family="system-ui,-apple-system,sans-serif" font-size="36" font-weight="800" fill="url(#textGrad)" filter="url(#glow)">OmniPost</text>
-  <text x="258" y="213" font-family="system-ui,-apple-system,sans-serif" font-size="14" fill="#64748b">多平台内容适配工作台</text>
+  <text x="258" y="213" font-family="system-ui,-apple-system,sans-serif" font-size="14" fill="#64748b">多平台内容适配工作台 &nbsp;|&nbsp; Multi‑Platform Content Adaptation Workbench</text>
 </svg>
 
 <br/>
-<br/>
 
-<!-- BADGES -->
+<!-- GITHUB SOCIAL BADGES -->
+<p>
+  <img src="https://img.shields.io/github/stars/Nomikfk1215/OmniPost?style=social" alt="Stars" />
+  <img src="https://img.shields.io/github/forks/Nomikfk1215/OmniPost?style=social" alt="Forks" />
+  <img src="https://img.shields.io/github/watchers/Nomikfk1215/OmniPost?style=social" alt="Watchers" />
+</p>
+
+<!-- TECH STACK BADGES -->
 <p>
   <img src="https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white&labelColor=0f172a" alt="Next.js 14" />
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white&labelColor=0f172a" alt="React 18" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=0f172a" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind-3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white&labelColor=0f172a" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/Zod-3E67B1?style=for-the-badge&logo=zod&logoColor=white&labelColor=0f172a" alt="Zod" />
-  <img src="https://img.shields.io/badge/Drizzle-0-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black&labelColor=0f172a" alt="Drizzle ORM" />
+  <img src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black&labelColor=0f172a" alt="Drizzle ORM" />
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/⚡_LLM_Powered-OpenAI_Compatible-10b981?style=flat-square&labelColor=0f172a" alt="LLM Powered" />
-  <img src="https://img.shields.io/badge/🎯_Multi--Platform-4_Channels-6366f1?style=flat-square&labelColor=0f172a" alt="Multi-Platform" />
-  <img src="https://img.shields.io/badge/🔒_Encrypted_Keys-AES--256--GCM-f59e0b?style=flat-square&labelColor=0f172a" alt="Encrypted Keys" />
+  <img src="https://img.shields.io/badge/⚡_LLM-OpenAI_Compatible-10b981?style=flat-square&labelColor=0f172a" alt="LLM Powered" />
+  <img src="https://img.shields.io/badge/🎯_4_Platforms-WeChat_|_Zhihu_|_XHS_|_Bilibili-6366f1?style=flat-square&labelColor=0f172a" alt="Multi-Platform" />
+  <img src="https://img.shields.io/badge/🔒_Keys-AES--256--GCM-f59e0b?style=flat-square&labelColor=0f172a" alt="Encrypted Keys" />
   <img src="https://img.shields.io/badge/license-MIT-94a3b8?style=flat-square&labelColor=0f172a" alt="License" />
 </p>
 
@@ -156,22 +162,34 @@
   </svg>
 </div>
 
-## ✨ 核心能力
+## ✨ 核心能力 &nbsp;/&nbsp; Core Capabilities
 
 <table>
 <tr>
 <td width="50%">
 
 ### 🎨 一次创作，多端适配
-
 在统一的 Markdown 编辑器中撰写原始内容，一键生成适配**微信公众号、知乎、小红书、B 站专栏**的差异化版本。每个平台拥有独立的编辑面板、预览视图和规则校验。
 
 </td>
 <td width="50%">
 
-### 🤖 LLM 驱动的内容改写
+### 🎨 Write Once, Publish Everywhere
+Draft in a unified Markdown editor, then generate platform-optimized versions for **WeChat, Zhihu, Xiaohongshu, and Bilibili** with one click. Each platform gets its own editing panel, preview, and rule validation.
 
-接入 OpenAI 兼容接口，通过**两阶段 pipeline**（内容摘要提取 → 平台适配生成）智能改写。每个平台拥有专属 Skill 定义（定位、标题规则、正文规则），结合风格预设（专业干货 / 轻松随性）精准控制输出。
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🤖 LLM 驱动的内容改写
+接入 OpenAI 兼容接口，通过**两阶段 pipeline**（内容摘要提取 → 平台适配生成）智能改写。每个平台拥有专属 Skill 定义，结合风格预设（专业干货 / 轻松随性）精准控制输出。
+
+</td>
+<td width="50%">
+
+### 🤖 LLM-Powered Adaptation
+Connects to any OpenAI-compatible API via a **two-phase pipeline** (content brief extraction → platform-specific generation). Each platform has a dedicated Skill definition paired with selectable style presets for precise output control.
 
 </td>
 </tr>
@@ -179,15 +197,27 @@
 <td width="50%">
 
 ### 📋 实时规则校验
-
 每个平台版本提交前自动校验：**标题长度、摘要字数、标签数量、Emoji 使用、封面图建议**等。校验结果即时反馈，确保生成内容符合各平台规范。
 
 </td>
 <td width="50%">
 
-### 🚀 模拟发布闭环
+### 📋 Real-Time Validation
+Pre-submit validation for every platform version: **title length, summary word count, tag limits, emoji usage, cover image suggestions**. Instant feedback ensures content meets each platform's publishing standards.
 
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🚀 模拟发布闭环
 一键创建模拟发布任务，自动生成各平台的 mock 详情页。在**发布记录**中查看历史任务、访问链接、追溯发布状态，完整体验从创作到发布的工作流。
+
+</td>
+<td width="50%">
+
+### 🚀 Simulated Publishing
+One-click publishing creates mock tasks with accessible detail pages for each platform. Browse publish history, visit generated URLs, and trace task status — a complete content-to-publish workflow.
 
 </td>
 </tr>
@@ -197,7 +227,7 @@
 
 ---
 
-## 🧩 平台适配矩阵
+## 🧩 平台适配矩阵 &nbsp;/&nbsp; Platform Matrix
 
 <table align="center">
 <tr align="center">
@@ -227,16 +257,16 @@
   </td>
 </tr>
 <tr align="center">
-  <td><b>微信公众号</b></td>
-  <td><b>知乎</b></td>
-  <td><b>小红书</b></td>
-  <td><b>B 站专栏</b></td>
+  <td><b>微信公众号</b><br/><sub>WeChat</sub></td>
+  <td><b>知乎</b><br/><sub>Zhihu</sub></td>
+  <td><b>小红书</b><br/><sub>Xiaohongshu</sub></td>
+  <td><b>B 站专栏</b><br/><sub>Bilibili</sub></td>
 </tr>
 <tr align="center">
-  <td><sub>深度长文 · 排版精致</sub></td>
-  <td><sub>专业问答 · 理性克制</sub></td>
-  <td><sub>轻量种草 · Emoji 友好</sub></td>
-  <td><sub>社区活泼 · 标题党 OK</sub></td>
+  <td><sub>深度长文 · 排版精致</sub><br/><sub><i>Long-form · Polished layout</i></sub></td>
+  <td><sub>专业问答 · 理性克制</sub><br/><sub><i>Expert Q&amp;A · Restrained tone</i></sub></td>
+  <td><sub>轻量种草 · Emoji 友好</sub><br/><sub><i>Bite-sized · Emoji-rich</i></sub></td>
+  <td><sub>社区活泼 · 标题党 OK</sub><br/><sub><i>Casual community · Clickbait OK</i></sub></td>
 </tr>
 <tr align="center">
   <td><code>title ≤ 64</code></td>
@@ -250,7 +280,7 @@
 
 ---
 
-## 🏗️ 架构总览
+## 🏗️ 架构总览 &nbsp;/&nbsp; Architecture
 
 <div align="center">
 
@@ -334,37 +364,17 @@
   <text x="685" y="160" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="monospace">mock URL</text>
 
   <!-- Connection Lines -->
-  <!-- Browser → Next.js -->
-  <line x1="170" y1="42" x2="250" y2="55" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
-  <!-- Next.js → API -->
+  <line x1="170" y1="42" x2="250" y2="55" stroke="#94a3b8" stroke-width="1.5"/>
   <line x1="100" y1="160" x2="100" y2="185" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3"/>
-  <line x1="100" y1="185" x2="250" y2="162" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
-  <!-- API → LLM -->
+  <line x1="100" y1="185" x2="250" y2="162" stroke="#94a3b8" stroke-width="1.5"/>
   <line x1="310" y1="80" x2="310" y2="100" stroke="#10b981" stroke-width="1.5" class="flow"/>
-  <!-- LLM → Prompt -->
   <line x1="310" y1="150" x2="310" y2="170" stroke="#f59e0b" stroke-width="1.5" class="flow"/>
-  <!-- Prompt → Validators -->
   <line x1="310" y1="220" x2="310" y2="240" stroke="#ec4899" stroke-width="1.5" class="flow"/>
-  <!-- API → Store -->
-  <line x1="370" y1="55" x2="450" y2="55" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
-  <!-- LLM ↔ Skills -->
+  <line x1="370" y1="55" x2="450" y2="55" stroke="#94a3b8" stroke-width="1.5"/>
   <line x1="370" y1="122" x2="450" y2="122" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>
-  <!-- Skills → Presets -->
   <line x1="510" y1="150" x2="510" y2="170" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 3"/>
-  <!-- Presets → Settings -->
   <line x1="510" y1="220" x2="510" y2="240" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 3"/>
-  <!-- Validators → Platform Contents -->
-  <line x1="370" y1="265" x2="630" y2="155" stroke="#38bdf8" stroke-width="1.5" class="flow" marker-end="url(#arrowBlue)"/>
-
-  <!-- Arrows -->
-  <defs>
-    <marker id="arrowGray" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/>
-    </marker>
-    <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#38bdf8"/>
-    </marker>
-  </defs>
+  <line x1="370" y1="265" x2="630" y2="155" stroke="#38bdf8" stroke-width="1.5" class="flow"/>
 </svg>
 
 </div>
@@ -373,7 +383,7 @@
 
 ---
 
-## 📦 项目结构
+## 📦 项目结构 &nbsp;/&nbsp; Project Structure
 
 ```
 src/
@@ -416,7 +426,7 @@ src/
 
 ---
 
-## 🚀 快速开始
+## 🚀 快速开始 &nbsp;/&nbsp; Quick Start
 
 <table>
 <tr>
@@ -453,7 +463,7 @@ npm run typecheck
 </tr>
 </table>
 
-### 环境要求
+### 环境要求 / Requirements
 
 - **Node.js** ≥ 18.17（推荐 20 LTS）
 - **npm**（随 Node.js 安装）
@@ -467,67 +477,52 @@ npm run start
 
 ---
 
-## ⚙️ 环境变量
+## ⚙️ 环境变量 &nbsp;/&nbsp; Environment Variables
 
 > 默认情况下平台生成走本地 mock 逻辑，无需配置即可体验完整工作流。  
-> 若要启用 LLM 真实生成，配置以下环境变量或通过 `/settings` 页面 UI 配置。
+> 若要启用 LLM 真实生成，配置以下环境变量或通过 `/settings` 页面 UI 配置。  
+> *Mock generation works out of the box. For real LLM generation, configure these variables or use the `/settings` UI.*
 
 ```bash
-# 复制示例文件
+# 复制示例文件 / Copy example
 cp .env.example .env.local
 ```
 
-| 变量 | 说明 | 默认值 |
+| 变量 / Variable | 说明 / Description | 默认值 / Default |
 |---|---|---|
-| `OMNIPOST_USE_LLM` | 启用 LLM 环境级兜底 | `false` |
-| `OPENAI_API_KEY` | OpenAI 兼容 API 密钥 | — |
-| `OMNIPOST_OPENAI_BASE_URL` | API 地址 | `https://api.openai.com/v1` |
-| `OMNIPOST_OPENAI_MODEL` | 模型名称 | `gpt-4o-mini` |
-| `OMNIPOST_ENCRYPTION_KEY` | UI 密钥加密密钥 | 本地开发默认值 |
+| `OMNIPOST_USE_LLM` | 启用 LLM 环境级兜底 / Enable LLM fallback | `false` |
+| `OPENAI_API_KEY` | OpenAI 兼容 API 密钥 / API key | — |
+| `OMNIPOST_OPENAI_BASE_URL` | API 地址 / Base URL | `https://api.openai.com/v1` |
+| `OMNIPOST_OPENAI_MODEL` | 模型名称 / Model name | `gpt-4o-mini` |
+| `OMNIPOST_ENCRYPTION_KEY` | UI 密钥加密密钥 / Encryption secret | 本地开发默认值 |
 
-> ⚡ **优先级**: UI 保存的 Key > 环境变量 > mock 回退  
-> 🔐 **加密**: UI 配置的 API Key 经 AES-256-GCM 加密后落盘
+> ⚡ **优先级 / Priority**: UI 保存的 Key > 环境变量 / Env Var > mock 回退  
+> 🔐 **加密 / Encryption**: UI 配置的 API Key 经 AES-256-GCM 加密后落盘 / *API keys encrypted at rest via AES-256-GCM*
 
 ---
 
-## 🔌 API 速查
+## 🔌 API 速查 &nbsp;/&nbsp; API Reference
 
-| Method | Route | 说明 |
+| Method | Route | 说明 / Description |
 |---|---|---|
-| `POST` | `/api/contents` | 创建原始内容 |
-| `POST` | `/api/contents/:id/generate` | 生成平台适配版本 |
-| `GET` / `PUT` | `/api/platform-contents/:id` | 读写平台版本 |
-| `GET` / `PUT` / `DELETE` | `/api/settings/llm` | LLM 配置管理 |
-| `POST` | `/api/settings/llm/test` | 测试 LLM 连接 |
-| `POST` | `/api/publish/mock` | 创建模拟发布任务 |
-| `GET` | `/api/publish/tasks` | 查询发布记录 |
+| `POST` | `/api/contents` | 创建原始内容 / Create content |
+| `POST` | `/api/contents/:id/generate` | 生成平台适配 / Generate adaptations |
+| `GET` `PUT` | `/api/platform-contents/:id` | 读写平台版本 / Read/update platform version |
+| `GET` `PUT` `DELETE` | `/api/settings/llm` | LLM 配置管理 / LLM config CRUD |
+| `POST` | `/api/settings/llm/test` | 测试 LLM 连接 / Test connection |
+| `POST` | `/api/publish/mock` | 创建模拟发布 / Mock publish |
+| `GET` | `/api/publish/tasks` | 查询发布记录 / List publish tasks |
 
 ---
 
-## 🗺️ 路线图
+## 🗺️ 路线图 &nbsp;/&nbsp; Roadmap
 
-<table>
-<tr>
-  <td><code>v1.0</code></td>
-  <td>✅</td>
-  <td>三栏工作台 · 4 平台适配 · LLM/Mock 双模式 · 规则校验 · 模拟发布</td>
-</tr>
-<tr>
-  <td><code>v1.1</code></td>
-  <td>🏗️</td>
-  <td>SQLite 持久化 · 图片上传与管理 · 批量发布</td>
-</tr>
-<tr>
-  <td><code>v1.2</code></td>
-  <td>📋</td>
-  <td>更多平台支持 · 自定义 Style Preset · 发布到真实平台 API</td>
-</tr>
-<tr>
-  <td><code>v2.0</code></td>
-  <td>💡</td>
-  <td>协作编辑 · 版本历史 · 内容分析仪表盘</td>
-</tr>
-</table>
+| Version | Status | 内容 / Features |
+|---|---|---|
+| `v1.0` | ✅ | 三栏工作台 · 4 平台适配 · LLM/Mock 双模式 · 规则校验 · 模拟发布 |
+| `v1.1` | 🏗️ | SQLite 持久化 · 图片上传与管理 · 批量发布 |
+| `v1.2` | 📋 | 更多平台支持 · 自定义 Style Preset · 真实平台 API 发布 |
+| `v2.0` | 💡 | 协作编辑 · 版本历史 · 内容分析仪表盘 |
 
 <br/>
 

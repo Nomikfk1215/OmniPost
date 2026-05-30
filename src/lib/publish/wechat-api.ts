@@ -1,3 +1,5 @@
+import { deflateSync } from "node:zlib";
+
 /**
  * WeChat Official Account API 客户端。
  * 纯 HTTP 封装，不依赖 OmniPost 类型，只处理微信 API 协议。
@@ -14,6 +16,7 @@ type TokenCacheEntry = {
 
 const tokenCache = new Map<string, TokenCacheEntry>();
 const TOKEN_BUFFER_MS = 120_000; // 提前 2 分钟刷新（token 有效期 7200s）
+const defaultCoverMediaIdCache = new Map<string, string>();
 
 // --- 类型定义 ---
 
@@ -24,6 +27,7 @@ export type WechatDraftArticle = {
   content: string; // HTML
   content_source_url?: string;
   thumb_media_id?: string;
+  show_cover_pic?: number;
   need_open_comment?: number;
   only_fans_can_comment?: number;
 };
@@ -33,6 +37,68 @@ type WechatApiResponse = {
   errmsg?: string;
   [key: string]: unknown;
 };
+
+// --- 默认封面图 ---
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createPngChunk(type: string, data: Buffer) {
+  const typeBuffer = Buffer.from(type, "ascii");
+  const lengthBuffer = Buffer.alloc(4);
+  lengthBuffer.writeUInt32BE(data.length, 0);
+
+  const crcBuffer = Buffer.alloc(4);
+  crcBuffer.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
+
+  return Buffer.concat([lengthBuffer, typeBuffer, data, crcBuffer]);
+}
+
+function createDefaultCoverPng() {
+  const width = 900;
+  const height = 383;
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+
+  for (let y = 0; y < height; y += 1) {
+    const rowStart = y * (width * 3 + 1);
+    raw[rowStart] = 0;
+
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowStart + 1 + x * 3;
+      const wave = Math.round(20 * Math.sin((x + y) / 52));
+      const highlight = x > 540 && y > 54 && y < 320 ? 24 : 0;
+      raw[offset] = Math.min(255, 232 + highlight + wave);
+      raw[offset + 1] = Math.min(255, 238 + highlight + Math.round(wave / 2));
+      raw[offset + 2] = Math.min(255, 246 + highlight);
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // truecolor
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    createPngChunk("IHDR", ihdr),
+    createPngChunk("IDAT", deflateSync(raw)),
+    createPngChunk("IEND", Buffer.alloc(0))
+  ]);
+}
 
 // --- HTTP 工具 ---
 
@@ -145,6 +211,22 @@ export async function uploadImageMaterial(
   }
 
   return data.media_id;
+}
+
+/** 上传 OmniPost 默认封面图，返回可用于草稿 thumb_media_id 的永久素材 media_id */
+export async function uploadDefaultCoverMaterial(
+  accessToken: string
+): Promise<string> {
+  const cached = defaultCoverMediaIdCache.get(accessToken);
+  if (cached) {
+    return cached;
+  }
+
+  const bytes = createDefaultCoverPng();
+  const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+  const mediaId = await uploadImageMaterial(accessToken, blob, "omnipost-cover.png");
+  defaultCoverMediaIdCache.set(accessToken, mediaId);
+  return mediaId;
 }
 
 /** 从 URL 下载图片并上传为永久素材 */
