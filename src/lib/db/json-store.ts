@@ -1,12 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Content, PlatformContent, PublishTask, StoredLLMSettings } from "@/types";
+import type { Content, PlatformContent, PublishTask, StoredLLMSettings, StoredPlatformCredential } from "@/types";
 
 type StoreShape = {
   contents: Content[];
   platformContents: PlatformContent[];
   publishTasks: PublishTask[];
   llmSettings: StoredLLMSettings | null;
+  platformCredentials: StoredPlatformCredential[];
 };
 
 const storeDir = path.join(process.cwd(), ".data");
@@ -18,7 +19,8 @@ const emptyStore: StoreShape = {
   contents: [],
   platformContents: [],
   publishTasks: [],
-  llmSettings: null
+  llmSettings: null,
+  platformCredentials: []
 };
 
 async function ensureStore() {
