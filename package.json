@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "node scripts/prepare-static.mjs hide && cross-env NEXT_STATIC_EXPORT=true next build && node scripts/prepare-static.mjs restore",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
@@ -21,6 +22,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
+    "cross-env": "^10.1.0",
     "eslint": "^8",
     "eslint-config-next": "14",
     "postcss": "^8",
