@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   ExternalLink,
   Loader2,
@@ -48,6 +49,20 @@ export function PublishSettingsPanel() {
     (platform) => state.platformContents[platform].data
   ).length;
   const canPublish = readyCount > 0 && !isPublishing;
+  const publishTask = state.publishTask;
+  const publishSucceeded = publishTask?.status === "success";
+  const publishStatusText = publishTask
+    ? publishTask.status === "success"
+      ? publishTask.mode === "real"
+        ? "发布提交成功"
+        : "模拟发布成功"
+      : publishTask.status === "partial"
+        ? "部分平台发布失败"
+        : "发布失败"
+    : null;
+  const firstPublishMessage = publishTask?.results.find(
+    (result) => result.message
+  )?.message;
 
   const loadAccounts = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -99,7 +114,7 @@ export function PublishSettingsPanel() {
           <div>
             <h2 className="text-sm font-semibold text-gray-950">发布设置</h2>
             <p className="text-xs text-gray-400">
-              {accountsError ? "平台账号同步失败，暂显示默认状态" : "勾选目标平台，确认后模拟发布"}
+              {accountsError ? "平台账号同步失败，暂显示默认状态" : "勾选目标平台，确认后提交发布"}
             </p>
           </div>
           <Badge className="border-gray-200 bg-white text-gray-600">
@@ -161,25 +176,55 @@ export function PublishSettingsPanel() {
             立即发布
           </Button>
           <div className="truncate text-center text-xs text-gray-500">
-            将内容模拟发布到目标平台，并生成发布记录
+            将内容提交到目标平台，并生成发布记录
           </div>
-          {state.publishTask ? (
-            <div className="rounded-md border border-emerald-200 bg-white p-2">
-              <div className="mb-2 flex items-center gap-1 text-xs font-medium text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                发布记录已生成
+          {publishTask ? (
+            <div
+              className={cn(
+                "rounded-md border bg-white p-2",
+                publishSucceeded ? "border-emerald-200" : "border-rose-200"
+              )}
+            >
+              <div
+                className={cn(
+                  "mb-2 flex items-center gap-1 text-xs font-medium",
+                  publishSucceeded ? "text-emerald-700" : "text-rose-700"
+                )}
+              >
+                {publishSucceeded ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {publishStatusText}
               </div>
+              {firstPublishMessage ? (
+                <div className="mb-2 max-h-14 overflow-auto break-all rounded bg-rose-50 px-2 py-1 text-xs leading-5 text-rose-700">
+                  {firstPublishMessage}
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-1">
-                {state.publishTask.results.slice(0, 4).map((result) => (
-                  <Link
-                    key={result.id}
-                    href={result.url}
-                    className="inline-flex h-7 items-center justify-between rounded bg-emerald-50 px-2 text-xs text-emerald-800 hover:bg-emerald-100"
-                  >
-                    {PLATFORM_INFOS[result.platform].shortLabel}
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                ))}
+                {publishTask.results.slice(0, 4).map((result) => {
+                  const itemClass = cn(
+                    "inline-flex h-7 items-center justify-between rounded px-2 text-xs",
+                    result.status === "success"
+                      ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      : "bg-rose-50 text-rose-700"
+                  );
+                  const label = PLATFORM_INFOS[result.platform].shortLabel;
+
+                  return result.url ? (
+                    <Link key={result.id} href={result.url} className={itemClass}>
+                      {label}
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  ) : (
+                    <span key={result.id} className={itemClass} title={result.message ?? "发布失败"}>
+                      {label}
+                      <span>{result.status === "success" ? "成功" : "失败"}</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ) : null}
