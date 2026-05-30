@@ -146,7 +146,7 @@ export type PublishResult = {
   id: string;
   platform: Platform;
   platformContentId: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "drafted";
   url: string;
   message?: string;
 };
@@ -157,6 +157,7 @@ export type PublishTaskStatus =
   | "pending"
   | "publishing"
   | "success"
+  | "drafted"
   | "failed"
   | "partial";
 

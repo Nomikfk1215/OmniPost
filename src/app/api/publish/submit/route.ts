@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { submitPublish } from "@/lib/publish/submit";
+import { imageAssetSchema, platformImagePlanSchema } from "@/lib/images/schemas";
 import { PLATFORMS } from "@/types";
 
 export const runtime = "nodejs";
@@ -31,6 +32,8 @@ const platformContentSchema = z.object({
   html: z.string().optional(),
   tags: z.array(z.string()).optional(),
   imageSuggestions: z.array(z.string()).optional(),
+  imageAssets: z.array(imageAssetSchema).optional(),
+  imagePlan: z.array(platformImagePlanSchema).optional(),
   coverSuggestion: z.string().optional(),
   interactionGuide: z.string().optional(),
   categorySuggestion: z.string().optional(),

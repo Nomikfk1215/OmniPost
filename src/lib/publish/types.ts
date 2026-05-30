@@ -10,9 +10,10 @@ export interface PublishRequest {
 export interface PublishResponse {
   platform: Platform;
   platformContentId: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "drafted";
   url: string;
   error?: string;
+  message?: string;
 }
 
 export interface PlatformPublisher {

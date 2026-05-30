@@ -272,10 +272,10 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         statusMessage: "正在发布..."
       };
     case "PUBLISH_SUCCESS": {
-      const failedResults = action.payload.results.filter(
-        (result) => result.status === "failed"
+      const attentionResults = action.payload.results.filter(
+        (result) => result.status !== "success"
       );
-      const firstError = failedResults.find((result) => result.message)?.message;
+      const firstMessage = attentionResults.find((result) => result.message)?.message;
       const publishSucceeded = action.payload.status === "success";
 
       return {
@@ -287,8 +287,10 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
           ? action.payload.mode === "real"
             ? "发布提交成功"
             : "模拟发布成功"
-          : firstError
-            ? "发布失败，查看发布面板详情"
+          : firstMessage
+            ? action.payload.status === "drafted"
+              ? "已创建草稿，需手动发布"
+              : "发布未完成，查看发布面板详情"
             : action.payload.status === "partial"
               ? "部分平台发布失败，查看发布面板详情"
               : "发布失败"

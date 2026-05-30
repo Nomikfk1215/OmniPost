@@ -58,6 +58,8 @@ export function PublishSettingsPanel() {
       ? publishTask.mode === "real"
         ? "发布提交成功"
         : "模拟发布成功"
+      : publishTask.status === "drafted"
+        ? "已创建草稿，需手动发布"
       : publishTask.status === "partial"
         ? "部分平台发布失败"
         : "发布失败"
@@ -215,7 +217,9 @@ export function PublishSettingsPanel() {
                     "inline-flex h-7 items-center justify-between rounded px-2 text-xs",
                     result.status === "success"
                       ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                      : "bg-rose-50 text-rose-700"
+                      : result.status === "drafted"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-rose-50 text-rose-700"
                   );
                   const label = PLATFORM_INFOS[result.platform].shortLabel;
 
@@ -227,7 +231,13 @@ export function PublishSettingsPanel() {
                   ) : (
                     <span key={result.id} className={itemClass} title={result.message ?? "发布失败"}>
                       {label}
-                      <span>{result.status === "success" ? "成功" : "失败"}</span>
+                      <span>
+                        {result.status === "success"
+                          ? "成功"
+                          : result.status === "drafted"
+                            ? "草稿"
+                            : "失败"}
+                      </span>
                     </span>
                   );
                 })}
@@ -246,7 +256,14 @@ export function PublishSettingsPanel() {
             className="w-full max-w-2xl rounded-md bg-white shadow-2xl"
           >
             <div className="flex items-start gap-3 border-b border-gray-100 px-5 py-4">
-              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+              <span
+                className={cn(
+                  "mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full",
+                  publishTask.status === "drafted"
+                    ? "bg-amber-50 text-amber-600"
+                    : "bg-rose-50 text-rose-600"
+                )}
+              >
                 <AlertCircle className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
@@ -254,7 +271,9 @@ export function PublishSettingsPanel() {
                   {publishStatusText}
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-gray-500">
-                  微信接口已返回明确错误，发布未完成。请按下方原因处理后重新发布。
+                  {publishTask.status === "drafted"
+                    ? "公众号草稿已创建，但当前接口权限不允许 API 直接发布。请到公众号后台完成发布。"
+                    : "微信接口已返回明确错误，发布未完成。请按下方原因处理后重新发布。"}
                 </p>
               </div>
               <button
@@ -276,7 +295,9 @@ export function PublishSettingsPanel() {
                       "rounded-md border p-3",
                       result.status === "success"
                         ? "border-emerald-200 bg-emerald-50"
-                        : "border-rose-200 bg-rose-50"
+                        : result.status === "drafted"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-rose-200 bg-rose-50"
                     )}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -287,14 +308,25 @@ export function PublishSettingsPanel() {
                         className={
                           result.status === "success"
                             ? "border-emerald-200 bg-white text-emerald-700"
-                            : "border-rose-200 bg-white text-rose-700"
+                            : result.status === "drafted"
+                              ? "border-amber-200 bg-white text-amber-700"
+                              : "border-rose-200 bg-white text-rose-700"
                         }
                       >
-                        {result.status === "success" ? "成功" : "失败"}
+                        {result.status === "success"
+                          ? "成功"
+                          : result.status === "drafted"
+                            ? "已生成草稿"
+                            : "失败"}
                       </Badge>
                     </div>
                     {result.message ? (
-                      <pre className="mt-3 whitespace-pre-wrap break-all rounded bg-white px-3 py-2 text-xs leading-5 text-rose-700">
+                      <pre
+                        className={cn(
+                          "mt-3 whitespace-pre-wrap break-all rounded bg-white px-3 py-2 text-xs leading-5",
+                          result.status === "drafted" ? "text-amber-700" : "text-rose-700"
+                        )}
+                      >
                         {result.message}
                       </pre>
                     ) : null}

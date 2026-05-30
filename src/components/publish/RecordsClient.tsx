@@ -24,6 +24,13 @@ function statusMeta(status: PublishTask["status"]) {
     };
   }
 
+  if (status === "drafted") {
+    return {
+      label: "已生成草稿",
+      className: "border-amber-200 bg-amber-50 text-amber-700"
+    };
+  }
+
   return {
     label: status === "failed" ? "失败" : status,
     className: "border-rose-200 bg-rose-50 text-rose-700"
@@ -79,7 +86,12 @@ export function RecordsClient() {
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-950">{task.title}</div>
                   {firstMessage ? (
-                    <div className="mt-1 max-w-[360px] break-all text-xs leading-5 text-rose-600">
+                    <div
+                      className={cn(
+                        "mt-1 max-w-[360px] break-all text-xs leading-5",
+                        task.status === "drafted" ? "text-amber-700" : "text-rose-600"
+                      )}
+                    >
                       {firstMessage}
                     </div>
                   ) : null}
@@ -92,11 +104,17 @@ export function RecordsClient() {
                         className={cn(
                           result.status === "success"
                             ? PLATFORM_INFOS[result.platform].accentClass
-                            : "border-rose-200 bg-rose-50 text-rose-700"
+                            : result.status === "drafted"
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
                         )}
                       >
                         {PLATFORM_INFOS[result.platform].shortLabel}
-                        {result.status === "failed" ? "失败" : ""}
+                        {result.status === "failed"
+                          ? "失败"
+                          : result.status === "drafted"
+                            ? "草稿"
+                            : ""}
                       </Badge>
                     ))}
                   </div>
@@ -122,10 +140,16 @@ export function RecordsClient() {
                       ) : (
                         <span
                           key={result.id}
-                          title={result.message ?? "发布失败"}
-                          className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700"
+                          title={result.message ?? (result.status === "drafted" ? "已生成草稿" : "发布失败")}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium",
+                            result.status === "drafted"
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                          )}
                         >
-                          {label}失败
+                          {label}
+                          {result.status === "drafted" ? "草稿" : "失败"}
                         </span>
                       );
                     })}
