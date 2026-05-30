@@ -378,7 +378,8 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       });
 
       if (!generateResponse.ok) {
-        throw new Error("平台适配失败");
+        const payload = (await generateResponse.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "平台适配失败");
       }
 
       const { outputs } = (await generateResponse.json()) as { outputs: PlatformContent[] };

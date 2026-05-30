@@ -70,6 +70,7 @@ export type PlatformContent = {
   id: string;
   contentId: string;
   platform: Platform;
+  generationSource?: "llm" | "mock";
   title: string;
   body: string;
   summary?: string;
