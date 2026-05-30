@@ -7,7 +7,8 @@ import {
   CheckCircle2,
   ExternalLink,
   Loader2,
-  Send
+  Send,
+  X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function PublishSettingsPanel() {
   const [accounts, setAccounts] = useState(defaultAccounts);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [dismissedPublishTaskId, setDismissedPublishTaskId] = useState<string | null>(null);
   const isPublishing = state.publishStatus === "publishing";
   const readyCount = state.settings.platforms.filter(
     (platform) => state.platformContents[platform].data
@@ -63,6 +65,10 @@ export function PublishSettingsPanel() {
   const firstPublishMessage = publishTask?.results.find(
     (result) => result.message
   )?.message;
+  const showPublishDialog =
+    Boolean(publishTask) &&
+    publishTask?.status !== "success" &&
+    dismissedPublishTaskId !== publishTask?.id;
 
   const loadAccounts = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -230,6 +236,91 @@ export function PublishSettingsPanel() {
           ) : null}
         </div>
       </div>
+
+      {publishTask && showPublishDialog ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-gray-950/45 px-4 py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publish-result-title"
+            className="w-full max-w-2xl rounded-md bg-white shadow-2xl"
+          >
+            <div className="flex items-start gap-3 border-b border-gray-100 px-5 py-4">
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+                <AlertCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 id="publish-result-title" className="text-base font-semibold text-gray-950">
+                  {publishStatusText}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-gray-500">
+                  微信接口已返回明确错误，发布未完成。请按下方原因处理后重新发布。
+                </p>
+              </div>
+              <button
+                type="button"
+                title="关闭"
+                onClick={() => setDismissedPublishTaskId(publishTask.id)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-950"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[58vh] overflow-auto px-5 py-4">
+              <div className="space-y-3">
+                {publishTask.results.map((result) => (
+                  <div
+                    key={result.id}
+                    className={cn(
+                      "rounded-md border p-3",
+                      result.status === "success"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-rose-200 bg-rose-50"
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-950">
+                        {PLATFORM_INFOS[result.platform].label}
+                      </span>
+                      <Badge
+                        className={
+                          result.status === "success"
+                            ? "border-emerald-200 bg-white text-emerald-700"
+                            : "border-rose-200 bg-white text-rose-700"
+                        }
+                      >
+                        {result.status === "success" ? "成功" : "失败"}
+                      </Badge>
+                    </div>
+                    {result.message ? (
+                      <pre className="mt-3 whitespace-pre-wrap break-all rounded bg-white px-3 py-2 text-xs leading-5 text-rose-700">
+                        {result.message}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 px-5 py-4">
+              <Button
+                variant="secondary"
+                onClick={() => setDismissedPublishTaskId(publishTask.id)}
+              >
+                关闭
+              </Button>
+              <Link
+                href="/records"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-sm font-medium text-white transition hover:bg-gray-800"
+              >
+                查看发布记录
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

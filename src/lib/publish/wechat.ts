@@ -2,6 +2,7 @@ import type { Platform, PlatformContent } from "@/types";
 import type { PlatformPublisher, PublishRequest, PublishResponse } from "./types";
 import {
   getAccessToken,
+  uploadDefaultCoverMaterial,
   uploadImageFromUrl,
   createDraft,
   publishDraft,
@@ -27,6 +28,15 @@ function mapToWechatDraft(
     need_open_comment: 0,
     only_fans_can_comment: 0
   };
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function buildPublishError(
@@ -70,15 +80,30 @@ export const wechatPublisher: PlatformPublisher = {
       );
     }
 
-    // 上传封面图（可选）
+    // 微信草稿接口要求 thumb_media_id 必须是永久图片素材 ID。
+    // coverSuggestion 是文字建议时不能直接上传，需回退到默认封面素材。
     let coverMediaId: string | undefined;
-    if (platformContent.coverSuggestion) {
+    if (
+      platformContent.coverSuggestion &&
+      isHttpUrl(platformContent.coverSuggestion)
+    ) {
       const result = await uploadImageFromUrl(
         accessToken,
         platformContent.coverSuggestion
       );
       coverMediaId = result ?? undefined;
-      // 封面图上传失败不阻断发布，只是没有封面
+    }
+
+    if (!coverMediaId) {
+      try {
+        coverMediaId = await uploadDefaultCoverMaterial(accessToken);
+      } catch (error) {
+        return buildPublishError(
+          "wechat",
+          platformContent.id,
+          `上传默认封面素材失败: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
 
     // 创建草稿
