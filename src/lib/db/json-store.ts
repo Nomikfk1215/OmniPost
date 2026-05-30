@@ -6,7 +6,8 @@ import type {
   PlatformContent,
   PublishTask,
   StoredPlatformAccount,
-  StoredLLMSettings
+  StoredLLMSettings,
+  StoredPlatformCredential
 } from "@/types";
 
 type StoreShape = {
@@ -15,6 +16,7 @@ type StoreShape = {
   publishTasks: PublishTask[];
   llmSettings: StoredLLMSettings | null;
   platformAccounts: StoredPlatformAccount[];
+  platformCredentials: StoredPlatformCredential[];
 };
 
 const storeDir = path.join(process.cwd(), ".data");
@@ -28,7 +30,8 @@ function createEmptyStore(): StoreShape {
     platformContents: [],
     publishTasks: [],
     llmSettings: null,
-    platformAccounts: createDefaultPlatformAccounts()
+    platformAccounts: createDefaultPlatformAccounts(),
+    platformCredentials: []
   };
 }
 

@@ -14,7 +14,7 @@ export async function createMockPublishTask(params: {
     id: createId("publish"),
     contentId: params.contentId,
     title: params.title,
-    mode: "mock",
+    mode: "mock" as const,
     status: "success",
     results: platformContents.map((content) => ({
       id: createId("result"),

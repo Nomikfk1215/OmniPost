@@ -119,14 +119,24 @@ export type PublishResult = {
   platformContentId: string;
   status: "success" | "failed";
   url: string;
+  message?: string;
 };
+
+export type PublishMode = "mock" | "real";
+
+export type PublishTaskStatus =
+  | "pending"
+  | "publishing"
+  | "success"
+  | "failed"
+  | "partial";
 
 export type PublishTask = {
   id: string;
   contentId: string;
   title: string;
-  mode: "mock";
-  status: "pending" | "publishing" | "success" | "failed";
+  mode: PublishMode;
+  status: PublishTaskStatus;
   results: PublishResult[];
   createdAt: string;
   finishedAt?: string;
@@ -185,4 +195,30 @@ export type PlatformSkill = {
   imageRule?: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
   editableFields: string[];
+};
+
+// === Platform Credential types ===
+
+export type CredentialPlatform = Platform;
+
+export type CredentialFieldDef = {
+  key: string;
+  label: string;
+  secret: boolean;
+  placeholder: string;
+};
+
+export type StoredPlatformCredential = {
+  platform: CredentialPlatform;
+  credentials: Record<string, string | null>;
+  addedAt: string;
+  updatedAt: string;
+};
+
+export type PublicPlatformCredential = {
+  platform: CredentialPlatform;
+  configured: boolean;
+  maskedFields: Record<string, string | null>;
+  addedAt: string;
+  updatedAt: string;
 };
