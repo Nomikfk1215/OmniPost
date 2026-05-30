@@ -2,40 +2,11 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Bookmark, Heart, MessageCircle } from "lucide-react";
 import type { PlatformContent } from "@/types";
+import { getOrderedPreviewImages } from "./image-assets";
 import { MarkdownBody } from "./MarkdownBody";
 
-function getPlannedImages(content: PlatformContent) {
-  const assets = content.imageAssets ?? [];
-  const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
-  const planned = (content.imagePlan ?? [])
-    .slice()
-    .sort((left, right) => left.order - right.order)
-    .map((plan) => {
-      const asset = assetMap.get(plan.imageAssetId);
-      return asset ? { plan, asset } : null;
-    })
-    .filter(Boolean) as Array<{
-    plan: NonNullable<PlatformContent["imagePlan"]>[number];
-    asset: NonNullable<PlatformContent["imageAssets"]>[number];
-  }>;
-
-  if (planned.length) {
-    return planned;
-  }
-
-  return assets.slice(0, 9).map((asset, index) => ({
-    plan: {
-      role: index === 0 ? "cover" : "gallery",
-      imageAssetId: asset.id,
-      order: index,
-      caption: asset.alt ?? asset.name
-    },
-    asset
-  }));
-}
-
 export function XiaohongshuPreview({ content }: { content: PlatformContent }) {
-  const plannedImages = getPlannedImages(content);
+  const plannedImages = getOrderedPreviewImages(content).slice(0, 9);
   const coverImage = plannedImages[0];
   const galleryImages = plannedImages.slice(1, 9);
 

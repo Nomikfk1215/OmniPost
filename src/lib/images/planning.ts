@@ -1,6 +1,12 @@
-import { createGeneratedCardImages } from "@/lib/images/generated";
+import { cleanGeneratedImageText, createGeneratedCardImages } from "@/lib/images/generated";
 import { normalizeImageAssets } from "@/lib/images/assets";
 import type { Content, ImageAsset, PlatformContent, PlatformImagePlan } from "@/types";
+
+const generatedCoverConfig = {
+  wechat: { count: 1, aspect: "2:1" },
+  xiaohongshu: { count: 3, aspect: "3:4" },
+  bilibili: { count: 1, aspect: "16:9" }
+} as const;
 
 function buildXiaohongshuPlan(params: {
   title: string;
@@ -12,8 +18,17 @@ function buildXiaohongshuPlan(params: {
     imageAssetId: asset.id,
     order: index,
     title: index === 0 ? params.title : undefined,
-    caption: params.imageSuggestions?.[index] ?? asset.alt ?? asset.name
+    caption: asset.alt || cleanGeneratedImageText(params.imageSuggestions?.[index]) || asset.name
   }));
+}
+
+function buildCoverPlan(asset: ImageAsset): PlatformImagePlan {
+  return {
+    role: "cover",
+    imageAssetId: asset.id,
+    order: 0,
+    caption: asset.alt ?? asset.name
+  };
 }
 
 export async function enrichPlatformImages(
@@ -22,13 +37,15 @@ export async function enrichPlatformImages(
 ): Promise<PlatformContent> {
   const sourceAssets = normalizeImageAssets(content.images);
   let imageAssets = sourceAssets;
+  const coverConfig = generatedCoverConfig[platformContent.platform as keyof typeof generatedCoverConfig];
 
-  if (platformContent.platform === "xiaohongshu" && imageAssets.length === 0) {
+  if (coverConfig && imageAssets.length === 0) {
     imageAssets = await createGeneratedCardImages({
       title: platformContent.title,
-      body: platformContent.body,
+      body: platformContent.body || platformContent.html || platformContent.description || platformContent.digest || "",
       imageSuggestions: platformContent.imageSuggestions,
-      count: 3
+      count: coverConfig.count,
+      aspect: coverConfig.aspect
     });
   }
 
@@ -39,7 +56,8 @@ export async function enrichPlatformImages(
   if (platformContent.platform !== "xiaohongshu") {
     return {
       ...platformContent,
-      imageAssets
+      imageAssets,
+      imagePlan: imageAssets[0] ? [buildCoverPlan(imageAssets[0])] : undefined
     };
   }
 
