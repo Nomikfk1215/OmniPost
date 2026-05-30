@@ -2,6 +2,7 @@ import { buildPrompt } from "@/lib/prompts/builder";
 import { loadStylePreset } from "@/lib/presets";
 import { createId } from "@/lib/utils";
 import { getRuntimeLLMConfig, type RuntimeLLMConfig } from "@/lib/llm/settings-store";
+import { enrichPlatformImages } from "@/lib/images/planning";
 import {
   contentBriefSchema,
   platformOutputSchemas,
@@ -31,6 +32,24 @@ async function readSafeError(response: Response) {
     return (await response.text()).slice(0, 500);
   } catch {
     return "";
+  }
+}
+
+function compactText(value: string, max = 180) {
+  return value.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+async function readJsonResponse(response: Response, context: string) {
+  const raw = await response.text();
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    const snippet = compactText(raw);
+    throw new LLMGenerationError(
+      `${context}失败：AI 接口返回的不是 JSON，请检查 API 地址是否为 OpenAI 兼容地址（通常需要以 /v1 结尾）${snippet ? `。返回片段：${snippet}` : ""}`,
+      502
+    );
   }
 }
 
@@ -69,7 +88,7 @@ async function callChatJson(
     );
   }
 
-  const payload = (await response.json()) as {
+  const payload = (await readJsonResponse(response, context)) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const raw = payload.choices?.[0]?.message?.content;
@@ -146,7 +165,7 @@ async function repairJson(
     );
   }
 
-  const payload = (await response.json()) as {
+  const payload = (await readJsonResponse(response, `${context} JSON 修复`)) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const repaired = payload.choices?.[0]?.message?.content;
@@ -244,11 +263,13 @@ async function generateViaOpenAICompatible(
     `${platform} 平台适配`
   )) as Record<string, unknown>;
 
-  return makePlatformContent({
+  const generated = makePlatformContent({
     content,
     platform,
     parsed
   });
+
+  return enrichPlatformImages(content, generated);
 }
 
 export async function generatePlatformContents(params: {

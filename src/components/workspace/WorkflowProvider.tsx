@@ -47,6 +47,8 @@ type WorkspaceState = {
 type Action =
   | { type: "UPDATE_RAW"; payload: Partial<RawContent> }
   | { type: "ADD_IMAGES"; payload: UploadedImage[] }
+  | { type: "REPLACE_IMAGES"; payload: { tempIds: string[]; images: UploadedImage[] } }
+  | { type: "MARK_IMAGES_FAILED"; payload: string[] }
   | { type: "REMOVE_IMAGE"; payload: string }
   | { type: "SET_PLATFORMS"; payload: Platform[] }
   | { type: "SET_STYLE"; payload: StylePreset }
@@ -113,6 +115,40 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
           images: [...state.rawContent.images, ...action.payload]
         }
       };
+    case "REPLACE_IMAGES": {
+      const tempIds = new Set(action.payload.tempIds);
+      let nextImageIndex = 0;
+
+      return {
+        ...state,
+        rawContent: {
+          ...state.rawContent,
+          images: state.rawContent.images.flatMap((image) => {
+            if (!tempIds.has(image.id)) {
+              return [image];
+            }
+
+            const replacement = action.payload.images[nextImageIndex];
+            nextImageIndex += 1;
+            return replacement ? [replacement] : [];
+          })
+        }
+      };
+    }
+    case "MARK_IMAGES_FAILED": {
+      const failedIds = new Set(action.payload);
+
+      return {
+        ...state,
+        rawContent: {
+          ...state.rawContent,
+          images: state.rawContent.images.map((image) =>
+            failedIds.has(image.id) ? { ...image, uploadStatus: "failed" } : image
+          )
+        },
+        statusMessage: "图片上传失败，请重新选择图片"
+      };
+    }
     case "REMOVE_IMAGE":
       return {
         ...state,
@@ -303,12 +339,51 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const images = Array.from(files).map((file) => ({
-      id: createId("image"),
-      name: file.name,
-      url: URL.createObjectURL(file)
-    }));
+    const fileList = Array.from(files);
+    const images = fileList.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+
+      return {
+        id: createId("image"),
+        source: "upload" as const,
+        name: file.name,
+        url: previewUrl,
+        mimeType: file.type || undefined,
+        size: file.size,
+        createdAt: new Date().toISOString(),
+        uploadStatus: "local" as const,
+        localPreviewUrl: previewUrl
+      };
+    });
     dispatch({ type: "ADD_IMAGES", payload: images });
+
+    const formData = new FormData();
+    fileList.forEach((file) => formData.append("files", file));
+
+    void fetch("/api/uploads", {
+      method: "POST",
+      body: formData
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("upload failed");
+        }
+
+        return (await response.json()) as { images: UploadedImage[] };
+      })
+      .then((payload) => {
+        images.forEach((image) => URL.revokeObjectURL(image.url));
+        dispatch({
+          type: "REPLACE_IMAGES",
+          payload: {
+            tempIds: images.map((image) => image.id),
+            images: payload.images.map((image) => ({ ...image, uploadStatus: "uploaded" }))
+          }
+        });
+      })
+      .catch(() => {
+        dispatch({ type: "MARK_IMAGES_FAILED", payload: images.map((image) => image.id) });
+      });
   }, []);
 
   const removeImage = useCallback((id: string) => {
@@ -358,7 +433,9 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           title: state.rawContent.title,
           rawText: state.rawContent.body,
-          images: state.rawContent.images.map((image) => image.name),
+          images: state.rawContent.images
+            .filter((image) => image.uploadStatus !== "failed" && !image.url.startsWith("blob:"))
+            .map(({ uploadStatus, localPreviewUrl, ...image }) => image),
           userTags: state.rawContent.userTags
         })
       });

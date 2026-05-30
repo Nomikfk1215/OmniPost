@@ -40,6 +40,10 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    return NextResponse.json({ error: "平台适配失败" }, { status: 500 });
+    console.error("Platform generation failed", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "平台适配失败" },
+      { status: 500 }
+    );
   }
 }
