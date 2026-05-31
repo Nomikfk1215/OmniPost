@@ -3,32 +3,23 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
-  Bold,
   ChevronDown,
-  Code2,
   FileImage,
-  Heading1,
-  Image as ImageIcon,
-  Italic,
-  Link2,
-  List,
   Plus,
-  Quote,
-  Redo2,
   Settings2,
   Sparkles,
   Trash2,
-  Undo2,
   Upload,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { extractImagePositions } from "@/lib/images/assets";
 import { cn, splitTags } from "@/lib/utils";
 import type { ContentType } from "@/types";
 import { FormattingOptionGroups, StylePresetSelector } from "./FormattingControls";
+import { RichTextEditor } from "./RichTextEditor";
 import { useWorkflow } from "./WorkflowProvider";
 
 const contentTypes: Array<{ value: ContentType; label: string }> = [
@@ -38,31 +29,40 @@ const contentTypes: Array<{ value: ContentType; label: string }> = [
   { value: "campaign", label: "活动文案" }
 ];
 
-const toolbarItems = [
-  { id: "bold", label: "加粗", icon: Bold, snippet: "**重点内容**" },
-  { id: "italic", label: "斜体", icon: Italic, snippet: "*补充说明*" },
-  { id: "heading", label: "标题", icon: Heading1, snippet: "## 小标题" },
-  { id: "list", label: "列表", icon: List, snippet: "- 要点一\n- 要点二" },
-  { id: "link", label: "链接", icon: Link2, snippet: "[链接文字](https://example.com)" },
-  { id: "image", label: "图片", icon: ImageIcon, snippet: "![图片说明](图片地址)" },
-  { id: "quote", label: "引用", icon: Quote, snippet: "> 引用内容" },
-  { id: "code", label: "代码", icon: Code2, snippet: "`代码片段`" }
-];
+function getTextFromBody(body: string) {
+  return body
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function LeftPanel() {
   const { state, updateRaw, addImages, removeImage, loadSample } = useWorkflow();
   const [tagDraft, setTagDraft] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const coverImage = state.rawContent.images[0];
-  const wordCount = useMemo(
-    () => state.rawContent.body.replace(/\s/g, "").length,
+  const inlineImageUrls = useMemo(
+    () => new Set(extractImagePositions(state.rawContent.body).map((image) => image.url)),
     [state.rawContent.body]
   );
-
-  function insertSnippet(snippet: string) {
-    const prefix = state.rawContent.body.trim() ? "\n\n" : "";
-    updateRaw({ body: `${state.rawContent.body}${prefix}${snippet}` });
-  }
+  const coverImage = useMemo(
+    () =>
+      state.rawContent.images.find(
+        (image) =>
+          !inlineImageUrls.has(image.url) &&
+          !(image.localPreviewUrl && inlineImageUrls.has(image.localPreviewUrl))
+      ),
+    [inlineImageUrls, state.rawContent.images]
+  );
+  const wordCount = useMemo(
+    () => getTextFromBody(state.rawContent.body).replace(/\s/g, "").length,
+    [state.rawContent.body]
+  );
 
   function addTagsFromDraft() {
     const nextTags = splitTags(tagDraft).filter(
@@ -88,7 +88,7 @@ export function LeftPanel() {
       <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-gray-950">内容编辑区</h2>
-          <p className="truncate text-xs text-gray-400">标题、类型、标签、封面图和正文 Markdown</p>
+          <p className="truncate text-xs text-gray-400">标题、类型、标签、封面图和正文排版</p>
         </div>
         <Button variant="secondary" size="sm" onClick={loadSample}>
           <Sparkles className="h-4 w-4" />
@@ -237,55 +237,14 @@ export function LeftPanel() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm font-medium text-gray-800">
-            <span>正文（Markdown）</span>
+            <span>正文</span>
             <span className="text-xs font-normal text-gray-400">{wordCount} 字</span>
           </div>
-          <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
-            <div className="flex items-center gap-1 border-b border-gray-100 bg-gray-50 px-2 py-1">
-              {toolbarItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    title={item.label}
-                    onClick={() => insertSnippet(item.snippet)}
-                    className="grid h-8 w-8 place-items-center rounded text-gray-600 transition hover:bg-white hover:text-gray-950"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                );
-              })}
-              <span className="mx-1 h-5 w-px bg-gray-200" />
-              <button
-                type="button"
-                title="撤销"
-                disabled
-                className="grid h-8 w-8 place-items-center rounded text-gray-300"
-              >
-                <Undo2 className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="重做"
-                disabled
-                className="grid h-8 w-8 place-items-center rounded text-gray-300"
-              >
-                <Redo2 className="h-4 w-4" />
-              </button>
-            </div>
-            <Textarea
-              value={state.rawContent.body}
-              onChange={(event) => updateRaw({ body: event.target.value })}
-              placeholder="粘贴文章、笔记、脚本或活动文案..."
-              className="min-h-[230px] resize-none border-0 focus:border-0 focus:ring-0"
-            />
-            <div className="flex h-9 items-center justify-between border-t border-gray-100 px-3 text-xs text-gray-400">
-              <span>Markdown 语法已开启</span>
-              <span>{state.rawContent.body.split(/\n/).length} 行</span>
-            </div>
-          </div>
+          <RichTextEditor
+            value={state.rawContent.body}
+            onChange={(body) => updateRaw({ body })}
+            onImageFiles={addImages}
+          />
         </div>
       </div>
     </section>

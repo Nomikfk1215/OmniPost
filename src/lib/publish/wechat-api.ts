@@ -213,6 +213,31 @@ export async function uploadImageMaterial(
   return data.media_id;
 }
 
+/** 上传图片到公众号正文图片域名，返回可直接放入 <img src> 的 URL */
+export async function uploadArticleImage(
+  accessToken: string,
+  imageBlob: Blob,
+  filename: string
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("media", imageBlob, filename);
+
+  const data = await wechatFetch<{
+    errcode?: number;
+    errmsg?: string;
+    url?: string;
+  }>(
+    `${WECHAT_API_BASE}/media/uploadimg?access_token=${accessToken}`,
+    { method: "POST", body: formData }
+  );
+
+  if (!data.url) {
+    throw new Error(`上传正文图片失败: ${data.errmsg ?? "未返回 url"}`);
+  }
+
+  return data.url;
+}
+
 /** 上传 OmniPost 默认封面图，返回可用于草稿 thumb_media_id 的永久素材 media_id */
 export async function uploadDefaultCoverMaterial(
   accessToken: string
@@ -270,6 +295,37 @@ export async function uploadImageFromUrl(
   } catch (error) {
     console.warn(
       `上传封面图失败: ${imageUrl} — ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
+  }
+}
+
+/** 从 URL 下载图片并上传到公众号正文图片域名 */
+export async function uploadArticleImageFromUrl(
+  accessToken: string,
+  imageUrl: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.warn(`下载正文图片失败: ${imageUrl} HTTP ${response.status}`);
+      return null;
+    }
+
+    const blob = await response.blob();
+    const contentType = response.headers.get("content-type") ?? "";
+    const ext = contentType.includes("png")
+      ? "png"
+      : contentType.includes("gif")
+        ? "gif"
+        : contentType.includes("webp")
+          ? "webp"
+          : "jpg";
+
+    return await uploadArticleImage(accessToken, blob, `inline.${ext}`);
+  } catch (error) {
+    console.warn(
+      `上传正文图片失败: ${imageUrl} — ${error instanceof Error ? error.message : String(error)}`
     );
     return null;
   }
