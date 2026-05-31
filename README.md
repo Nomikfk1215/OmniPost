@@ -267,6 +267,12 @@ cp .env.example .env.local   # 复制示例文件 / Copy example
 | `OMNIPOST_OPENAI_BASE_URL` | API 地址 / Base URL | `https://api.openai.com/v1` |
 | `OMNIPOST_OPENAI_MODEL` | 模型名称 / Model name | `gpt-4o-mini` |
 | `OMNIPOST_ENCRYPTION_KEY` | UI 密钥加密密钥 / Encryption secret | 本地开发默认值 |
+| `OMNIPOST_OAUTH_STATE_SECRET` | 平台 OAuth state 签名密钥 / OAuth state signing secret | 复用加密密钥 |
+| `OMNIPOST_BILIBILI_CLIENT_ID` | B 站开放平台 Client ID / Bilibili OAuth client ID | — |
+| `OMNIPOST_BILIBILI_CLIENT_SECRET` | B 站开放平台 Client Secret / Bilibili OAuth client secret | — |
+| `OMNIPOST_BILIBILI_DEFAULT_CATEGORY` | B 站专栏默认分区 / Default Bilibili article category | `1` |
+| `OMNIPOST_XIAOHONGSHU_APP_ID` | 小红书服务商 App ID / Xiaohongshu app ID | — |
+| `OMNIPOST_XIAOHONGSHU_APP_SECRET` | 小红书服务商 App Secret / Xiaohongshu app secret | — |
 
 > ⚡ **优先级 / Priority**: UI 保存的 Key > 环境变量 / Env Var > mock 回退  
 > 🔐 **加密 / Encryption**: UI 配置的 API Key 经 AES-256-GCM 加密后落盘 / *API keys encrypted at rest via AES-256-GCM*
@@ -282,8 +288,16 @@ cp .env.example .env.local   # 复制示例文件 / Copy example
 | `GET` `PUT` | `/api/platform-contents/:id` | 读写平台版本 / Read/update platform version |
 | `GET` `PUT` `DELETE` | `/api/settings/llm` | LLM 配置管理 / LLM config CRUD |
 | `POST` | `/api/settings/llm/test` | 测试 LLM 连接 / Test connection |
+| `GET` | `/api/accounts` | 查询平台账号连接状态 / List platform account connections |
+| `POST` | `/api/accounts/:platform/connect` | 发起 OAuth 连接 / Start OAuth connection |
+| `GET` | `/api/accounts/:platform/callback` | OAuth 回调落库 / OAuth callback |
+| `GET` | `/api/publish/capabilities` | 查询真实/辅助发布能力 / Publish capability matrix |
+| `POST` | `/api/publish/preflight` | 发布前能力检查 / Publish preflight |
+| `POST` | `/api/publish/submit` | 统一发布入口 / Submit real, assist, or mock publish |
 | `POST` | `/api/publish/mock` | 创建模拟发布 / Mock publish |
 | `GET` | `/api/publish/tasks` | 查询发布记录 / List publish tasks |
+
+真实发布连接规则：微信公众号使用设置页 AppID/AppSecret；知乎、小红书、B 站在没有开放平台资质时以辅助发布包承接，可在生成的详情页一键复制到对应平台后台。B 站如果后续拿到开放平台 OAuth 和 `ATC_BASE` 专栏权限，可再切换为真实发布。
 
 ---
 

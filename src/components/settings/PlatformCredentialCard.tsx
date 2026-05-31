@@ -203,6 +203,26 @@ export function PlatformCredentialCard() {
   }
 
   const wechatCred = credentials.find((c) => c.platform === "wechat");
+  const secondaryPlatforms = [
+    {
+      id: "zhihu",
+      name: "知乎",
+      description: "当前没有稳定的官方创作者发文 API，发布时生成辅助发布包。",
+      badge: "辅助发布"
+    },
+    {
+      id: "xiaohongshu",
+      name: "小红书",
+      description: "账号 OAuth 在账号页连接；笔记发布权限需平台确认，当前生成辅助发布包。",
+      badge: "辅助发布"
+    },
+    {
+      id: "bilibili",
+      name: "B站专栏",
+      description: "没有开放平台资质时直接走辅助发布；如果以后拿到 ATC_BASE 权限，再到账号页连接 OAuth。",
+      badge: "辅助发布"
+    }
+  ];
 
   return (
     <div className="space-y-4">
@@ -384,22 +404,20 @@ export function PlatformCredentialCard() {
         </aside>
       </div>
 
-      {/* 其他平台占位（暂不支持） */}
-      {["zhihu", "xiaohongshu", "bilibili"].map((platform) => (
-        <div key={platform} className="panel rounded-md p-4 opacity-60">
+      {/* 其他平台由账号连接页和辅助发布链路承接 */}
+      {secondaryPlatforms.map((platform) => (
+        <div key={platform.id} className="panel rounded-md p-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-gray-600">
-                {platform === "zhihu"
-                  ? "知乎"
-                  : platform === "xiaohongshu"
-                    ? "小红书"
-                    : "B站专栏"}
+                {platform.name}
               </h3>
-              <p className="mt-1 text-xs text-gray-400">发布功能即将上线</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {platform.description}
+              </p>
             </div>
             <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-400">
-              待支持
+              {platform.badge}
             </span>
           </div>
         </div>

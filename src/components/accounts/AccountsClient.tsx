@@ -23,6 +23,7 @@ import {
   PLATFORMS,
   type Platform,
   type PlatformAccount,
+  type PlatformPublishCapability,
   type PublishCapability
 } from "@/types";
 
@@ -30,6 +31,26 @@ type BusyState = { platform: Platform; action: "auth" | "capability" } | null;
 type Message = { type: "success" | "error"; text: string };
 
 const defaultAccounts = createDefaultPlatformAccounts();
+const ASSIST_ONLY_PLATFORMS = new Set<Platform>([
+  "zhihu",
+  "xiaohongshu",
+  "bilibili"
+]);
+
+function capabilitiesToRecord(capabilities: PlatformPublishCapability[]) {
+  return capabilities.reduce(
+    (result, capability) => ({ ...result, [capability.platform]: capability }),
+    {} as Partial<Record<Platform, PlatformPublishCapability>>
+  );
+}
+
+function publishModeLabel(capability?: PlatformPublishCapability) {
+  if (!capability) return "同步中";
+  if (capability.realReady) return "真实发布";
+  if (capability.assistSupported) return "辅助发布";
+  if (capability.realSupported) return "缺少授权";
+  return "模拟发布";
+}
 
 async function parseResponseError(response: Response) {
   try {
@@ -50,6 +71,9 @@ function replaceAccount(accounts: PlatformAccount[], nextAccount: PlatformAccoun
 
 export function AccountsClient() {
   const [accounts, setAccounts] = useState<PlatformAccount[]>(defaultAccounts);
+  const [capabilities, setCapabilities] = useState<
+    Partial<Record<Platform, PlatformPublishCapability>>
+  >({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<BusyState>(null);
   const [message, setMessage] = useState<Message | null>(null);
@@ -61,21 +85,34 @@ export function AccountsClient() {
     );
   }, [accounts]);
 
-  const authorizedCount = accounts.filter((account) => account.authorized).length;
+  const realReadyCount = Object.values(capabilities).filter(
+    (capability) => capability?.realReady
+  ).length;
   const saving = busy !== null;
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/accounts", { cache: "no-store" });
+      const [response, capabilitiesResponse] = await Promise.all([
+        fetch("/api/accounts", { cache: "no-store" }),
+        fetch("/api/publish/capabilities", { cache: "no-store" })
+      ]);
 
       if (!response.ok) {
         throw new Error(await parseResponseError(response));
       }
 
+      if (!capabilitiesResponse.ok) {
+        throw new Error(await parseResponseError(capabilitiesResponse));
+      }
+
       const payload = (await response.json()) as { accounts?: PlatformAccount[] };
+      const capabilityPayload = (await capabilitiesResponse.json()) as {
+        capabilities?: PlatformPublishCapability[];
+      };
       setAccounts(normalizePlatformAccounts(payload.accounts));
+      setCapabilities(capabilitiesToRecord(capabilityPayload.capabilities ?? []));
     } catch (error) {
       setMessage({
         type: "error",
@@ -178,7 +215,7 @@ export function AccountsClient() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-gray-950">平台账号</h1>
           <p className="mt-1 text-sm leading-6 text-gray-500">
-            B站和小红书会跳转开放平台完成连接；微信和知乎当前保留手动标记。
+            当前版本只有微信公众号走真实凭据；知乎、小红书、B站专栏固定为一键复制辅助发布。
           </p>
         </div>
         <Badge
@@ -189,7 +226,7 @@ export function AccountsClient() {
               : "border-emerald-100 bg-emerald-50 text-emerald-700"
           )}
         >
-          {saving ? "保存中" : "已保存"} · 已授权 {authorizedCount}/{PLATFORMS.length}
+          {saving ? "保存中" : "已保存"} · 真实发布 {realReadyCount}/1
         </Badge>
       </div>
 
@@ -216,7 +253,9 @@ export function AccountsClient() {
           const account = accountByPlatform[platform];
           const authBusy = busy?.platform === platform && busy.action === "auth";
           const capabilityBusy = busy?.platform === platform && busy.action === "capability";
-          const capability = PUBLISH_CAPABILITY_INFOS[account.publishCapability];
+          const publishCapability = capabilities[platform];
+          const capabilityReason = publishCapability?.reasons[0];
+          const assistOnly = ASSIST_ONLY_PLATFORMS.has(platform);
           const connectedByOAuth = account.connectionMethod === "oauth";
           const primaryLabel = account.authorized
             ? connectedByOAuth
@@ -231,7 +270,10 @@ export function AccountsClient() {
           return (
             <section
               key={platform}
-              className="panel flex min-h-[332px] flex-col rounded-md p-4"
+              className={cn(
+                "panel flex min-h-[332px] flex-col rounded-md p-4",
+                assistOnly && "border-gray-200 bg-gray-50/70 opacity-75"
+              )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -248,7 +290,9 @@ export function AccountsClient() {
                     "grid h-9 w-9 shrink-0 place-items-center rounded-md border",
                     account.authorized
                       ? "border-emerald-100 bg-emerald-50 text-emerald-600"
-                      : "border-gray-200 bg-gray-50 text-gray-400"
+                      : assistOnly
+                        ? "border-gray-200 bg-white text-gray-300"
+                        : "border-gray-200 bg-gray-50 text-gray-400"
                   )}
                 >
                   <ShieldCheck className="h-4 w-4" />
@@ -260,36 +304,60 @@ export function AccountsClient() {
                   <span className="text-gray-500">授权状态</span>
                   <Badge
                     className={
-                      account.authorized
-                        ? "border-emerald-100 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 bg-gray-50 text-gray-600"
+                      assistOnly
+                        ? "border-gray-200 bg-white text-gray-500"
+                        : account.authorized
+                          ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                          : "border-gray-200 bg-gray-50 text-gray-600"
                     }
                   >
-                    {account.authorized ? "已授权" : "未授权"}
+                    {assistOnly ? "无需授权" : account.authorized ? "已授权" : "未授权"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-gray-500">账号名称</span>
                   <span className="truncate font-medium text-gray-800">
-                    {account.accountName ?? (account.authorized ? "手动标记" : "未连接")}
+                    {assistOnly
+                      ? "不需要连接"
+                      : account.accountName ?? (account.authorized ? "手动标记" : "未连接")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-gray-500">连接方式</span>
                   <span className="truncate font-medium text-gray-800">
-                    {connectedByOAuth ? "开放平台" : account.authorized ? "手动标记" : "未连接"}
+                    {assistOnly
+                      ? "辅助复制"
+                      : connectedByOAuth
+                        ? "开放平台"
+                        : account.authorized ? "手动标记" : "未连接"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-gray-500">发布能力</span>
-                  <span className="truncate font-medium text-gray-800">
-                    {capability.label}
+                  <span
+                    className="truncate text-right font-medium text-gray-800"
+                    title={publishCapability?.reasons.join("；")}
+                  >
+                    {assistOnly ? "一键复制辅助发布" : publishModeLabel(publishCapability)}
                   </span>
                 </div>
+                {assistOnly ? (
+                  <p className="rounded-md bg-white px-2.5 py-2 text-xs leading-5 text-gray-500">
+                    当前版本不连接该平台账号。发布后在下方结果区直接点击“一键复制”，再粘贴到平台后台。
+                  </p>
+                ) : capabilityReason ? (
+                  <p className="rounded-md bg-gray-50 px-2.5 py-2 text-xs leading-5 text-gray-500">
+                    {capabilityReason}
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-auto pt-5">
-                {account.authorized ? (
+                {assistOnly ? (
+                  <div className="rounded-md border border-dashed border-gray-200 bg-white px-3 py-2 text-center text-xs leading-5 text-gray-500">
+                    已置灰：仅支持辅助发布，无需配置 OAuth。
+                  </div>
+                ) : account.authorized ? (
                   <label className="mb-3 block">
                     <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-500">
                       <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -310,7 +378,11 @@ export function AccountsClient() {
                       className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-gray-50"
                     >
                       {Object.entries(PUBLISH_CAPABILITY_INFOS).map(([value, option]) => (
-                        <option key={value} value={value}>
+                        <option
+                          key={value}
+                          value={value}
+                          disabled={value === "real" && !publishCapability?.realReady}
+                        >
                           {option.label}
                         </option>
                       ))}
@@ -326,7 +398,7 @@ export function AccountsClient() {
                       ? void toggleAuthorized(platform)
                       : connectPlatform(platform)
                   }
-                  disabled={loading || authBusy}
+                  disabled={loading || authBusy || assistOnly}
                 >
                   {authBusy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -342,7 +414,7 @@ export function AccountsClient() {
                   {primaryLabel}
                 </Button>
                 <p className="mt-2 min-h-8 text-xs leading-4 text-gray-400">
-                  {account.oauthHint}
+                  {assistOnly ? "发布后使用发布设置中的复制按钮。" : account.oauthHint}
                 </p>
               </div>
             </section>

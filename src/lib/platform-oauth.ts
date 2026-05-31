@@ -205,7 +205,7 @@ async function completeBilibiliOAuth(code: string): Promise<OAuthConnectionResul
     throw new Error(getOAuthProviderStatus("bilibili").hint);
   }
 
-  const tokenUrl = new URL("https://member.bilibili.com/x/account-oauth2/v1/token");
+  const tokenUrl = new URL("https://api.bilibili.com/x/account-oauth2/v1/token");
   tokenUrl.searchParams.set("client_id", clientId);
   tokenUrl.searchParams.set("client_secret", clientSecret);
   tokenUrl.searchParams.set("grant_type", "authorization_code");

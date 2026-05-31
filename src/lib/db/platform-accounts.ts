@@ -2,6 +2,7 @@ import {
   normalizePlatformAccounts,
   toPublicPlatformAccount
 } from "@/lib/platform-accounts";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import type {
   Platform,
   PlatformAccount,
@@ -25,6 +26,17 @@ export type ConnectPlatformAccountInput = {
   scopes: string[];
 };
 
+export type DecryptedPlatformAccount = {
+  platform: Platform;
+  accountName: string | null;
+  externalAccountId: string | null;
+  accessToken: string;
+  refreshToken: string | null;
+  tokenExpiresAt: string | null;
+  refreshTokenExpiresAt: string | null;
+  scopes: string[];
+};
+
 export async function listPlatformAccounts() {
   const store = await readStore();
   return normalizePlatformAccounts(store.platformAccounts).map(toPublicPlatformAccount);
@@ -33,6 +45,11 @@ export async function listPlatformAccounts() {
 export async function listStoredPlatformAccounts() {
   const store = await readStore();
   return normalizePlatformAccounts(store.platformAccounts);
+}
+
+export async function getStoredPlatformAccount(platform: Platform) {
+  const accounts = await listStoredPlatformAccounts();
+  return accounts.find((account) => account.platform === platform) ?? null;
 }
 
 export async function updatePlatformAccount(
@@ -122,6 +139,77 @@ export async function connectPlatformAccount(
   }
 
   return toPublicPlatformAccount(nextAccount);
+}
+
+function safeDecrypt(value: string | null) {
+  if (!value) return null;
+
+  try {
+    return decryptSecret(value);
+  } catch {
+    return null;
+  }
+}
+
+export async function getDecryptedPlatformAccount(
+  platform: Platform
+): Promise<DecryptedPlatformAccount | null> {
+  const account = await getStoredPlatformAccount(platform);
+
+  if (!account?.authorized || !account.encryptedAccessToken) {
+    return null;
+  }
+
+  const accessToken = safeDecrypt(account.encryptedAccessToken);
+
+  if (!accessToken) {
+    return null;
+  }
+
+  return {
+    platform,
+    accountName: account.accountName,
+    externalAccountId: account.externalAccountId,
+    accessToken,
+    refreshToken: safeDecrypt(account.encryptedRefreshToken),
+    tokenExpiresAt: account.tokenExpiresAt,
+    refreshTokenExpiresAt: account.refreshTokenExpiresAt,
+    scopes: account.scopes
+  };
+}
+
+export async function updatePlatformOAuthTokens(
+  platform: Platform,
+  input: {
+    accessToken: string;
+    refreshToken?: string | null;
+    tokenExpiresAt?: string | null;
+    refreshTokenExpiresAt?: string | null;
+    scopes?: string[];
+  }
+) {
+  const store = await readStore();
+  const accounts = normalizePlatformAccounts(store.platformAccounts);
+  const nextAccounts = accounts.map((account) =>
+    account.platform === platform
+      ? {
+          ...account,
+          authorized: true,
+          connectionMethod: "oauth" as const,
+          encryptedAccessToken: encryptSecret(input.accessToken),
+          encryptedRefreshToken: input.refreshToken
+            ? encryptSecret(input.refreshToken)
+            : account.encryptedRefreshToken,
+          tokenExpiresAt: input.tokenExpiresAt ?? account.tokenExpiresAt,
+          refreshTokenExpiresAt:
+            input.refreshTokenExpiresAt ?? account.refreshTokenExpiresAt,
+          scopes: input.scopes ?? account.scopes,
+          lastConnectionError: null
+        }
+      : account
+  );
+
+  await writeStore({ ...store, platformAccounts: nextAccounts });
 }
 
 export async function markPlatformConnectionError(platform: Platform, message: string) {

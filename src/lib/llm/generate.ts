@@ -190,7 +190,7 @@ async function extractContentBrief(
       {
         role: "system",
         content:
-          "你是内容理解编辑，只负责从原文中提取结构化摘要。必须保留原文里的关键事实、型号、版本号、日期、功能点、主观评价和转折关系。不要新增事实。只输出 JSON。"
+          "你是内容理解编辑，只负责从原文中提取结构化摘要。必须保留原文里的关键事实、型号、版本号、日期、功能点、主观评价和转折关系。不要新增事实。只输出 JSON。不要返回 null；没有内容的可选字段请省略或使用空字符串/空数组。"
       },
       {
         role: "user",
@@ -200,14 +200,14 @@ async function extractContentBrief(
           content.userTags?.length ? `用户标签：${content.userTags.join("、")}` : "",
           `正文：\n${content.rawText}`,
           `输出字段：${JSON.stringify({
-            sourceTitle: "string，可选，原文标题",
+            sourceTitle: "string，可选，原文标题；没有则省略，不要返回 null",
             coreTopic: "string，原文核心主题",
             summary: "string，尽量覆盖原文主要信息的摘要",
             mainPoints: "string[]，按原文顺序提炼的主要分点",
             retainedDetails: "string[]，必须保留的名称、版本号、数字、日期、观点或例子",
             keywords: "string[]，可作为标签候选",
-            audience: "string，可选",
-            tone: "string，可选"
+            audience: "string，可选；没有则省略，不要返回 null",
+            tone: "string，可选；没有则省略，不要返回 null"
           })}`
         ]
           .filter(Boolean)
