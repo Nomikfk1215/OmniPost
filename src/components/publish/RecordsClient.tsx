@@ -31,10 +31,37 @@ function statusMeta(status: PublishTask["status"]) {
     };
   }
 
+  if (status === "assist") {
+    return {
+      label: "辅助发布",
+      className: "border-sky-200 bg-sky-50 text-sky-700"
+    };
+  }
+
   return {
     label: status === "failed" ? "失败" : status,
     className: "border-rose-200 bg-rose-50 text-rose-700"
   };
+}
+
+function resultBadgeClass(result: PublishTask["results"][number]) {
+  if (result.status === "success") {
+    return PLATFORM_INFOS[result.platform].accentClass;
+  }
+  if (result.status === "drafted") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  if (result.status === "assist") {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
+function resultSuffix(result: PublishTask["results"][number]) {
+  if (result.status === "failed") return "失败";
+  if (result.status === "drafted") return "草稿";
+  if (result.status === "assist") return "辅助";
+  return "";
 }
 
 export function RecordsClient() {
@@ -89,7 +116,11 @@ export function RecordsClient() {
                     <div
                       className={cn(
                         "mt-1 max-w-[360px] break-all text-xs leading-5",
-                        task.status === "drafted" ? "text-amber-700" : "text-rose-600"
+                        task.status === "drafted"
+                          ? "text-amber-700"
+                          : task.status === "assist"
+                            ? "text-sky-700"
+                            : "text-rose-600"
                       )}
                     >
                       {firstMessage}
@@ -101,20 +132,10 @@ export function RecordsClient() {
                     {task.results.map((result) => (
                       <Badge
                         key={result.id}
-                        className={cn(
-                          result.status === "success"
-                            ? PLATFORM_INFOS[result.platform].accentClass
-                            : result.status === "drafted"
-                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700"
-                        )}
+                        className={cn(resultBadgeClass(result))}
                       >
                         {PLATFORM_INFOS[result.platform].shortLabel}
-                        {result.status === "failed"
-                          ? "失败"
-                          : result.status === "drafted"
-                            ? "草稿"
-                            : ""}
+                        {resultSuffix(result)}
                       </Badge>
                     ))}
                   </div>
@@ -140,16 +161,25 @@ export function RecordsClient() {
                       ) : (
                         <span
                           key={result.id}
-                          title={result.message ?? (result.status === "drafted" ? "已生成草稿" : "发布失败")}
+                          title={
+                            result.message ??
+                            (result.status === "drafted"
+                              ? "已生成草稿"
+                              : result.status === "assist"
+                                ? "已生成辅助发布包"
+                                : "发布失败")
+                          }
                           className={cn(
                             "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium",
                             result.status === "drafted"
                               ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : result.status === "assist"
+                                ? "border-sky-200 bg-sky-50 text-sky-700"
                               : "border-rose-200 bg-rose-50 text-rose-700"
                           )}
                         >
                           {label}
-                          {result.status === "drafted" ? "草稿" : "失败"}
+                          {resultSuffix(result) || "失败"}
                         </span>
                       );
                     })}

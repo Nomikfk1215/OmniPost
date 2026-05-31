@@ -146,7 +146,7 @@ export type PublishResult = {
   id: string;
   platform: Platform;
   platformContentId: string;
-  status: "success" | "failed" | "drafted";
+  status: "success" | "failed" | "drafted" | "assist";
   url: string;
   message?: string;
 };
@@ -158,6 +158,7 @@ export type PublishTaskStatus =
   | "publishing"
   | "success"
   | "drafted"
+  | "assist"
   | "failed"
   | "partial";
 
@@ -251,4 +252,19 @@ export type PublicPlatformCredential = {
   maskedFields: Record<string, string | null>;
   addedAt: string;
   updatedAt: string;
+};
+
+export type PlatformPublishMode = "real" | "assist" | "mock" | "unavailable";
+
+export type PlatformPublishCapability = {
+  platform: Platform;
+  hasPublisher: boolean;
+  realSupported: boolean;
+  realReady: boolean;
+  assistSupported: boolean;
+  preferredMode: PlatformPublishMode;
+  authMethod: AccountConnectionMethod | "credential" | null;
+  accountName: string | null;
+  scopes: string[];
+  reasons: string[];
 };

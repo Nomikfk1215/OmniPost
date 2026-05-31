@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { AssistCopyPanel } from "@/components/publish/AssistCopyPanel";
 import { AppNav } from "@/components/shell/AppNav";
 import { PreviewRenderer } from "@/components/preview/PreviewRenderer";
 import { ValidationPanel } from "@/components/preview/ValidationPanel";
@@ -43,11 +44,14 @@ export default async function MockDetailPage({
           </div>
           <PreviewRenderer content={content} />
         </div>
-        <aside className="panel h-fit rounded-md p-4">
-          <h2 className="text-sm font-semibold text-gray-950">发布校验</h2>
-          <div className="mt-3">
-            <ValidationPanel checks={content.validation.checks} />
-          </div>
+        <aside className="space-y-4">
+          <AssistCopyPanel content={content} />
+          <section className="panel h-fit rounded-md p-4">
+            <h2 className="text-sm font-semibold text-gray-950">发布校验</h2>
+            <div className="mt-3">
+              <ValidationPanel checks={content.validation.checks} />
+            </div>
+          </section>
         </aside>
       </main>
     </>

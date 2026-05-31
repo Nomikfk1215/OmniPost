@@ -10,7 +10,6 @@ import {
   ChevronDown,
   FileText,
   History,
-  PenLine,
   Settings,
   UserCheck
 } from "lucide-react";
@@ -37,7 +36,6 @@ const navItems: NavItem[] = [
     icon: FileText,
     active: (pathname) => pathname === "/workspace"
   },
-  { label: "新建内容", href: "/workspace?intent=new", icon: PenLine },
   {
     label: "平台账号",
     href: "/accounts",

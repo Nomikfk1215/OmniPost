@@ -415,7 +415,7 @@ npm run start</code></pre>
   <li>点击"一键适配"，等待生成</li>
   <li>在预览区查看知乎回答样式（500px 宽度仿真）</li>
   <li>手动微调标题或正文后保存</li>
-  <li>目前知乎支持<strong>模拟发布</strong>，真实 API 接入规划中</li>
+      <li>目前知乎在真实发布流程中返回<strong>辅助发布</strong>，生成可复制的发布包</li>
 </ol>
 
 <div class="docs-callout info">
@@ -461,7 +461,7 @@ npm run start</code></pre>
   </ul></li>
   <li>在预览区查看小红书笔记卡片样式（360px 宽度仿真）</li>
   <li>检查标签和 emoji 是否合适，手动微调</li>
-  <li>目前小红书支持<strong>模拟发布</strong></li>
+  <li>目前小红书在真实发布流程中返回<strong>辅助发布</strong>，生成可复制的发布包</li>
 </ol>
 
 <div class="docs-callout tip">
@@ -506,7 +506,7 @@ npm run start</code></pre>
     <li>建议合适的专栏分区</li>
   </ul></li>
   <li>在预览区查看 B 站专栏样式（520px 宽度仿真）</li>
-  <li>目前 Bilibili 支持<strong>模拟发布</strong></li>
+  <li>没有开放平台资质时，Bilibili 在真实发布流程中返回<strong>辅助发布</strong>；后续拿到 OAuth 和 <code>ATC_BASE</code> 权限后可切换为真实专栏发布</li>
 </ol>
 `,
   },
@@ -860,7 +860,41 @@ OMNIPOST_OPENAI_MODEL=gpt-4o-mini</code></pre>
     body: `
 <h2>概述</h2>
 
-<p>发布 API 支持两种模式：模拟发布（mock）用于预览效果，真实发布（real）对接平台 API。</p>
+<p>发布 API 使用统一提交入口。<code>mode=mock</code> 只生成本地模拟链接；<code>mode=real</code> 会按平台能力自动分流：可真实发布的平台调用官方 API，不具备稳定写入 API 的平台生成辅助发布包。</p>
+
+<h2>查询发布能力</h2>
+
+<p><code>GET /api/publish/capabilities</code></p>
+
+<pre><code>// Response
+{
+  "capabilities": [
+    {
+      "platform": "bilibili",
+      "realSupported": true,
+      "realReady": true,
+      "assistSupported": false,
+      "preferredMode": "real",
+      "authMethod": "oauth",
+      "reasons": []
+    }
+  ]
+}</code></pre>
+
+<h2>发布前检查</h2>
+
+<p><code>POST /api/publish/preflight</code></p>
+
+<pre><code>// Request Body
+{
+  "platforms": ["wechat", "zhihu", "xiaohongshu", "bilibili"]
+}
+
+// Response
+{
+  "ok": false,
+  "capabilities": [ PlatformPublishCapability, ... ]
+}</code></pre>
 
 <h2>统一发布接口</h2>
 
@@ -869,12 +903,9 @@ OMNIPOST_OPENAI_MODEL=gpt-4o-mini</code></pre>
 <pre><code>// Request Body
 {
   "contentId": "string",
+  "title": "string",
   "mode": "mock" | "real",
-  "platforms": ["wechat", "zhihu"],
-  "platformContentIds": {
-    "wechat": "pc_xxx",
-    "zhihu": "pc_yyy"
-  }
+  "platformContents": [ PlatformContent, ... ]
 }
 
 // Response: PublishTask</code></pre>
@@ -888,16 +919,20 @@ OMNIPOST_OPENAI_MODEL=gpt-4o-mini</code></pre>
 <p>调用平台官方 API 发布内容。目前支持：</p>
 <ul>
   <li><strong>微信公众号</strong>——推送到草稿箱（需要 AppID + AppSecret）</li>
-  <li>更多平台接入中</li>
+  <li><strong>Bilibili 专栏</strong>——通过开放平台 OAuth 投稿专栏（需要 <code>ATC_BASE</code> 权限）</li>
 </ul>
 
-<p>真实发布前，请确保已在设置页面配置对应平台的凭证。</p>
+<p>真实发布前，请确保已在设置页面配置对应平台的凭证，或在账号页完成 OAuth 连接。</p>
+
+<h2>辅助发布（assist）</h2>
+
+<p>知乎、小红书以及未完成开放平台授权的 B 站，会在真实发布流程中返回 <code>assist</code> 状态，并生成可一键复制的辅助发布包，保证发布记录能真实反映平台能力。</p>
 
 <h2>查询发布历史</h2>
 
 <p><code>GET /api/publish/tasks</code></p>
 
-<p>返回所有发布任务的列表，按创建时间倒序。每个任务包含状态（pending/publishing/success/failed/partial）、时间戳和平台级结果。</p>
+<p>返回所有发布任务的列表，按创建时间倒序。每个任务包含状态（pending/publishing/success/drafted/assist/failed/partial）、时间戳和平台级结果。</p>
 
 <h2>PublishTask 结构</h2>
 
@@ -906,13 +941,13 @@ OMNIPOST_OPENAI_MODEL=gpt-4o-mini</code></pre>
   "contentId": "c_xxx",
   "title": "文章标题",
   "mode": "mock" | "real",
-  "status": "success" | "failed" | "partial" | "pending" | "publishing",
+  "status": "success" | "drafted" | "assist" | "failed" | "partial" | "pending" | "publishing",
   "results": [
     {
       "id": "pr_xxx",
       "platform": "wechat",
       "platformContentId": "pc_xxx",
-      "status": "success" | "failed",
+      "status": "success" | "drafted" | "assist" | "failed",
       "url": "https://...",
       "message": "发布成功" | "错误信息"
     }

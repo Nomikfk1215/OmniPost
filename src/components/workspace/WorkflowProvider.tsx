@@ -426,25 +426,38 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
       const attentionResults = action.payload.results.filter(
         (result) => result.status !== "success"
       );
+      const failedResults = action.payload.results.filter(
+        (result) => result.status === "failed"
+      );
       const firstMessage = attentionResults.find((result) => result.message)?.message;
-      const publishSucceeded = action.payload.status === "success";
+      const publishSucceeded = failedResults.length === 0;
+      const statusMessage = (() => {
+        if (action.payload.status === "success") {
+          return action.payload.mode === "real" ? "发布提交成功" : "模拟发布成功";
+        }
+        if (action.payload.status === "drafted") {
+          return "已创建草稿，需手动发布";
+        }
+        if (action.payload.status === "assist") {
+          return "已生成辅助发布包";
+        }
+        if (publishSucceeded) {
+          return "已完成发布处理，部分平台需要手动辅助";
+        }
+        if (firstMessage) {
+          return "发布未完成，查看发布面板详情";
+        }
+        return action.payload.status === "partial"
+          ? "部分平台发布失败，查看发布面板详情"
+          : "发布失败";
+      })();
 
       return {
         ...state,
         step: "publish",
         publishTask: action.payload,
         publishStatus: publishSucceeded ? "success" : "error",
-        statusMessage: publishSucceeded
-          ? action.payload.mode === "real"
-            ? "发布提交成功"
-            : "模拟发布成功"
-          : firstMessage
-            ? action.payload.status === "drafted"
-              ? "已创建草稿，需手动发布"
-              : "发布未完成，查看发布面板详情"
-            : action.payload.status === "partial"
-              ? "部分平台发布失败，查看发布面板详情"
-              : "发布失败"
+        statusMessage
       };
     }
     case "PUBLISH_ERROR":
