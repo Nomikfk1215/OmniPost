@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, PencilLine, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PLATFORM_INFOS } from "@/lib/platforms";
@@ -107,6 +107,7 @@ export function RecordsClient() {
             {tasks.map((task) => {
               const meta = statusMeta(task.status);
               const firstMessage = task.results.find((result) => result.message)?.message;
+              const editHref = `/workspace?contentId=${encodeURIComponent(task.contentId)}`;
 
               return (
               <tr key={task.id} className="bg-white">
@@ -146,6 +147,13 @@ export function RecordsClient() {
                 <td className="px-4 py-3 text-gray-500">{formatDateTime(task.createdAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={editHref}
+                      className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    >
+                      编辑
+                      <PencilLine className="h-3 w-3" />
+                    </Link>
                     {task.results.map((result) => {
                       const label = PLATFORM_INFOS[result.platform].shortLabel;
 
