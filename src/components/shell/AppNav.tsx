@@ -147,7 +147,7 @@ export function AppNav({
           <span className="grid h-8 w-8 place-items-center rounded-full bg-gray-900 text-xs font-semibold text-white">
             N
           </span>
-          <span className="hidden font-medium min-[1180px]:inline">Nomi</span>
+          <span className="hidden font-medium min-[1180px]:inline">User</span>
           <ChevronDown className="h-4 w-4" />
         </button>
       </header>
