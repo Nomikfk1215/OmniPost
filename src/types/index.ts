@@ -84,6 +84,7 @@ export type PlatformImagePlan = {
 export type Content = {
   id: string;
   title?: string;
+  contentType?: ContentType;
   rawText: string;
   images: ImageAsset[];
   userTags?: string[];
