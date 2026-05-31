@@ -5,7 +5,8 @@ import { imageInputSchema } from "@/lib/images/schemas";
 
 const createContentSchema = z.object({
   title: z.string().optional(),
-  rawText: z.string().min(1),
+  contentType: z.enum(["tutorial", "article", "note", "campaign"]).optional(),
+  rawText: z.string().default(""),
   images: z.array(imageInputSchema).optional(),
   userTags: z.array(z.string()).optional()
 });

@@ -4,8 +4,11 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
   type ReactNode
 } from "react";
 import { collectContentImages } from "@/lib/images/assets";
@@ -13,6 +16,7 @@ import { validatePlatformContent } from "@/lib/validators";
 import { createId } from "@/lib/utils";
 import type {
   ImageAsset,
+  Content,
   Platform,
   PlatformContent,
   PlatformImagePlan,
@@ -47,7 +51,26 @@ type WorkspaceState = {
   publishStatus: "idle" | "publishing" | "success" | "error";
 };
 
+type WorkspacePersistedState = Pick<
+  WorkspaceState,
+  | "step"
+  | "contentId"
+  | "rawContent"
+  | "settings"
+  | "platformContents"
+  | "activePlatformTab"
+>;
+
+type WorkspaceSnapshot = {
+  version: 1;
+  updatedAt: string;
+  state: WorkspacePersistedState;
+};
+
 type Action =
+  | { type: "RESTORE_SNAPSHOT"; payload: WorkspacePersistedState }
+  | { type: "RESTORE_CONTENT"; payload: { content: Content; platformContents: PlatformContent[] } }
+  | { type: "CONTENT_SAVED"; payload: { contentId: string } }
   | { type: "UPDATE_RAW"; payload: Partial<RawContent> }
   | { type: "ADD_IMAGES"; payload: UploadedImage[] }
   | { type: "REPLACE_IMAGES"; payload: { tempIds: string[]; images: UploadedImage[] } }
@@ -71,13 +94,17 @@ type AddImagesOptions = {
   onLocalImages?: (images: UploadedImage[]) => void;
 };
 
-const emptySlots = PLATFORMS.reduce(
-  (acc, platform) => ({
-    ...acc,
-    [platform]: { status: "idle", data: null }
-  }),
-  {} as Record<Platform, PlatformSlot>
-);
+const WORKSPACE_SNAPSHOT_KEY = "omnipost.workspace.snapshot.v1";
+
+function createEmptyPlatformSlots() {
+  return PLATFORMS.reduce(
+    (acc, platform) => ({
+      ...acc,
+      [platform]: { status: "idle", data: null }
+    }),
+    {} as Record<Platform, PlatformSlot>
+  );
+}
 
 const initialState: WorkspaceState = {
   step: "input",
@@ -99,7 +126,7 @@ const initialState: WorkspaceState = {
       emphasis: "bold"
     }
   },
-  platformContents: emptySlots,
+  platformContents: createEmptyPlatformSlots(),
   activePlatformTab: "wechat",
   statusMessage: null,
   publishTask: null,
@@ -109,6 +136,199 @@ const initialState: WorkspaceState = {
 function stripUploadFields(image: UploadedImage): ImageAsset {
   const { uploadStatus, localPreviewUrl, ...asset } = image;
   return asset;
+}
+
+function isPlatform(value: unknown): value is Platform {
+  return typeof value === "string" && PLATFORMS.includes(value as Platform);
+}
+
+function isContentType(value: unknown): value is RawContent["contentType"] {
+  return value === "tutorial" || value === "article" || value === "note" || value === "campaign";
+}
+
+function normalizeRawContent(rawContent?: Partial<RawContent>): RawContent {
+  return {
+    title: typeof rawContent?.title === "string" ? rawContent.title : "",
+    contentType: isContentType(rawContent?.contentType) ? rawContent.contentType : "tutorial",
+    body: typeof rawContent?.body === "string" ? rawContent.body : "",
+    images: Array.isArray(rawContent?.images) ? rawContent.images : [],
+    userTags: Array.isArray(rawContent?.userTags)
+      ? rawContent.userTags.filter((tag): tag is string => typeof tag === "string")
+      : []
+  };
+}
+
+function normalizeSettings(settings?: Partial<WorkspaceState["settings"]>) {
+  const platforms = Array.isArray(settings?.platforms)
+    ? settings.platforms.filter(isPlatform)
+    : initialState.settings.platforms;
+
+  return {
+    platforms: platforms.length ? platforms : initialState.settings.platforms,
+    stylePreset:
+      settings?.stylePreset === "professional" || settings?.stylePreset === "casual"
+        ? settings.stylePreset
+        : initialState.settings.stylePreset,
+    formatting: {
+      ...initialState.settings.formatting,
+      ...(settings?.formatting ?? {})
+    }
+  };
+}
+
+function createSlotsFromPlatformContents(contents: PlatformContent[]) {
+  const slots = createEmptyPlatformSlots();
+
+  contents.forEach((content) => {
+    slots[content.platform] = {
+      status: "ready",
+      data: content
+    };
+  });
+
+  return slots;
+}
+
+function normalizePlatformSlots(slots?: Partial<Record<Platform, PlatformSlot>>) {
+  const normalized = createEmptyPlatformSlots();
+
+  PLATFORMS.forEach((platform) => {
+    const slot = slots?.[platform];
+
+    if (slot?.data) {
+      normalized[platform] = {
+        status: "ready",
+        data: slot.data
+      };
+    }
+  });
+
+  return normalized;
+}
+
+function hasReadyPlatformContent(slots: Record<Platform, PlatformSlot>) {
+  return PLATFORMS.some((platform) => Boolean(slots[platform].data));
+}
+
+function rawContentFromContent(content: Content): RawContent {
+  return {
+    title: content.title ?? "",
+    contentType: content.contentType ?? "tutorial",
+    body: content.rawText,
+    images: content.images.map((image) => ({ ...image, uploadStatus: "uploaded" })),
+    userTags: content.userTags ?? []
+  };
+}
+
+function hasDraftContent(rawContent: RawContent) {
+  const text = rawContent.body
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+
+  return Boolean(
+    rawContent.title.trim() ||
+      text ||
+      rawContent.images.length ||
+      rawContent.userTags.length
+  );
+}
+
+function sanitizeRawContentForPersistence(rawContent: RawContent): RawContent {
+  return {
+    ...rawContent,
+    images: rawContent.images
+      .filter((image) => image.uploadStatus !== "failed" && !image.url.startsWith("blob:"))
+      .map((image) => ({ ...stripUploadFields(image), uploadStatus: "uploaded" }))
+  };
+}
+
+function contentPayloadFromRaw(rawContent: RawContent) {
+  const sanitized = sanitizeRawContentForPersistence(rawContent);
+
+  return {
+    title: sanitized.title,
+    contentType: sanitized.contentType,
+    rawText: sanitized.body,
+    images: sanitized.images.map(stripUploadFields),
+    userTags: sanitized.userTags
+  };
+}
+
+function createWorkspaceSnapshot(state: WorkspaceState): WorkspaceSnapshot {
+  const platformContents = createEmptyPlatformSlots();
+
+  PLATFORMS.forEach((platform) => {
+    const content = state.platformContents[platform].data;
+
+    if (content) {
+      platformContents[platform] = {
+        status: "ready",
+        data: content
+      };
+    }
+  });
+
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    state: {
+      step: state.step === "adapt" ? "preview" : state.step,
+      contentId: state.contentId,
+      rawContent: sanitizeRawContentForPersistence(state.rawContent),
+      settings: state.settings,
+      platformContents,
+      activePlatformTab: state.activePlatformTab
+    }
+  };
+}
+
+function readWorkspaceSnapshot(): WorkspaceSnapshot | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_SNAPSHOT_KEY);
+    const parsed = raw ? (JSON.parse(raw) as WorkspaceSnapshot) : null;
+
+    return parsed?.version === 1 && parsed.state ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeWorkspaceSnapshot(state: WorkspaceState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!state.contentId && !hasDraftContent(state.rawContent) && !hasReadyPlatformContent(state.platformContents)) {
+    window.localStorage.removeItem(WORKSPACE_SNAPSHOT_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(
+    WORKSPACE_SNAPSHOT_KEY,
+    JSON.stringify(createWorkspaceSnapshot(state))
+  );
+}
+
+function syncWorkspaceUrl(contentId: string | null) {
+  if (!contentId || typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+
+  if (url.pathname !== "/workspace" || url.searchParams.get("contentId") === contentId) {
+    return;
+  }
+
+  url.searchParams.set("contentId", contentId);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function toPublishableImageAssets(rawContent: RawContent): ImageAsset[] {
@@ -228,6 +448,59 @@ function syncImagesIntoReadySlots(
 
 function reducer(state: WorkspaceState, action: Action): WorkspaceState {
   switch (action.type) {
+    case "RESTORE_SNAPSHOT": {
+      const platformContents = normalizePlatformSlots(action.payload.platformContents);
+      const hasPlatformContent = hasReadyPlatformContent(platformContents);
+      const settings = normalizeSettings(action.payload.settings);
+      const activePlatformTab = isPlatform(action.payload.activePlatformTab)
+        ? action.payload.activePlatformTab
+        : settings.platforms[0];
+
+      return {
+        ...state,
+        step: hasPlatformContent
+          ? action.payload.step === "adapt" || action.payload.step === "publish"
+            ? "preview"
+            : action.payload.step
+          : "input",
+        contentId: action.payload.contentId ?? null,
+        rawContent: normalizeRawContent(action.payload.rawContent),
+        settings,
+        platformContents,
+        activePlatformTab,
+        publishTask: null,
+        publishStatus: "idle",
+        statusMessage: "已恢复上次工作区草稿"
+      };
+    }
+    case "RESTORE_CONTENT": {
+      const platformContents = createSlotsFromPlatformContents(action.payload.platformContents);
+      const restoredPlatforms = Array.from(
+        new Set(action.payload.platformContents.map((content) => content.platform))
+      );
+      const settings = {
+        ...state.settings,
+        platforms: restoredPlatforms.length ? restoredPlatforms : state.settings.platforms
+      };
+
+      return {
+        ...state,
+        step: action.payload.platformContents.length ? "preview" : "input",
+        contentId: action.payload.content.id,
+        rawContent: rawContentFromContent(action.payload.content),
+        settings,
+        platformContents,
+        activePlatformTab: restoredPlatforms[0] ?? state.activePlatformTab,
+        publishTask: null,
+        publishStatus: "idle",
+        statusMessage: "已恢复保存的工作区内容"
+      };
+    }
+    case "CONTENT_SAVED":
+      return {
+        ...state,
+        contentId: action.payload.contentId
+      };
     case "UPDATE_RAW":
       return {
         ...state,
@@ -508,8 +781,123 @@ type WorkflowContextValue = {
 
 const WorkflowContext = createContext<WorkflowContextValue | null>(null);
 
-export function WorkflowProvider({ children }: { children: ReactNode }) {
+export function WorkflowProvider({
+  children,
+  initialContentId
+}: {
+  children: ReactNode;
+  initialContentId?: string;
+}) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [isReady, setIsReady] = useState(false);
+  const lastAutoSavedContentRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreWorkspace() {
+      if (initialContentId) {
+        try {
+          const response = await fetch(`/api/contents/${initialContentId}`);
+
+          if (!response.ok) {
+            throw new Error("restore failed");
+          }
+
+          const payload = (await response.json()) as {
+            content: Content;
+            platformContents?: PlatformContent[];
+          };
+
+          if (!cancelled) {
+            dispatch({
+              type: "RESTORE_CONTENT",
+              payload: {
+                content: payload.content,
+                platformContents: payload.platformContents ?? []
+              }
+            });
+          }
+        } catch {
+          if (!cancelled) {
+            const snapshot = readWorkspaceSnapshot();
+
+            if (snapshot) {
+              dispatch({ type: "RESTORE_SNAPSHOT", payload: snapshot.state });
+            } else {
+              dispatch({ type: "SET_STATUS", payload: "未能恢复指定内容" });
+            }
+          }
+        } finally {
+          if (!cancelled) {
+            setIsReady(true);
+          }
+        }
+        return;
+      }
+
+      const snapshot = readWorkspaceSnapshot();
+
+      if (!cancelled && snapshot) {
+        dispatch({ type: "RESTORE_SNAPSHOT", payload: snapshot.state });
+      }
+
+      if (!cancelled) {
+        setIsReady(true);
+      }
+    }
+
+    void restoreWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialContentId]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    writeWorkspaceSnapshot(state);
+  }, [isReady, state]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    syncWorkspaceUrl(state.contentId);
+  }, [isReady, state.contentId]);
+
+  useEffect(() => {
+    if (!isReady || !state.contentId || !hasDraftContent(state.rawContent)) {
+      return;
+    }
+
+    const payload = contentPayloadFromRaw(state.rawContent);
+    const snapshot = JSON.stringify({ contentId: state.contentId, payload });
+
+    if (lastAutoSavedContentRef.current === snapshot) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/contents/${state.contentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then((response) => {
+        if (response.ok) {
+          lastAutoSavedContentRef.current = snapshot;
+        }
+      }).catch(() => undefined);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [isReady, state.contentId, state.rawContent]);
 
   const updateRaw = useCallback((patch: Partial<RawContent>) => {
     dispatch({ type: "UPDATE_RAW", payload: patch });
@@ -609,24 +997,23 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "START_GENERATION" });
 
     try {
-      const createResponse = await fetch("/api/contents", {
-        method: "POST",
+      const contentPayload = contentPayloadFromRaw(state.rawContent);
+      const saveResponse = await fetch(state.contentId ? `/api/contents/${state.contentId}` : "/api/contents", {
+        method: state.contentId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: state.rawContent.title,
-          rawText: state.rawContent.body,
-          images: state.rawContent.images
-            .filter((image) => image.uploadStatus !== "failed" && !image.url.startsWith("blob:"))
-            .map(({ uploadStatus, localPreviewUrl, ...image }) => image),
-          userTags: state.rawContent.userTags
-        })
+        body: JSON.stringify(contentPayload)
       });
 
-      if (!createResponse.ok) {
-        throw new Error("创建内容失败");
+      if (!saveResponse.ok) {
+        throw new Error("保存原始内容失败");
       }
 
-      const { content } = (await createResponse.json()) as { content: { id: string } };
+      const { content } = (await saveResponse.json()) as { content: Content };
+      lastAutoSavedContentRef.current = JSON.stringify({
+        contentId: content.id,
+        payload: contentPayload
+      });
+      dispatch({ type: "CONTENT_SAVED", payload: { contentId: content.id } });
       const generateResponse = await fetch(`/api/contents/${content.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -649,34 +1036,63 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
         payload: error instanceof Error ? error.message : "适配失败"
       });
     }
-  }, [state.rawContent, state.settings]);
+  }, [state.contentId, state.rawContent, state.settings]);
 
   const saveActiveContent = useCallback(async () => {
     const active = state.platformContents[state.activePlatformTab].data;
 
-    if (!active) {
-      dispatch({ type: "SET_STATUS", payload: "当前平台还没有适配内容" });
+    if (!hasDraftContent(state.rawContent) && !active) {
+      dispatch({ type: "SET_STATUS", payload: "请先填写草稿内容" });
       return;
     }
 
-    const response = await fetch(`/api/platform-contents/${active.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(active)
-    });
+    try {
+      const contentPayload = contentPayloadFromRaw(state.rawContent);
+      const contentResponse = await fetch(state.contentId ? `/api/contents/${state.contentId}` : "/api/contents", {
+        method: state.contentId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contentPayload)
+      });
 
-    if (!response.ok) {
-      dispatch({ type: "SET_STATUS", payload: "保存失败" });
-      return;
+      if (!contentResponse.ok) {
+        throw new Error("保存原始草稿失败");
+      }
+
+      const { content: savedContent } = (await contentResponse.json()) as { content: Content };
+      lastAutoSavedContentRef.current = JSON.stringify({
+        contentId: savedContent.id,
+        payload: contentPayload
+      });
+      dispatch({ type: "CONTENT_SAVED", payload: { contentId: savedContent.id } });
+
+      if (!active) {
+        dispatch({ type: "SET_STATUS", payload: "草稿已保存" });
+        return;
+      }
+
+      const response = await fetch(`/api/platform-contents/${active.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(active)
+      });
+
+      if (!response.ok) {
+        throw new Error("保存平台内容失败");
+      }
+
+      const { content } = (await response.json()) as { content: PlatformContent };
+      dispatch({
+        type: "UPDATE_PLATFORM_CONTENT",
+        payload: { platform: content.platform, patch: content }
+      });
+      dispatch({ type: "SET_STATUS", payload: "草稿和当前平台版本已保存" });
+    } catch (error) {
+      dispatch({
+        type: "SET_STATUS",
+        payload: error instanceof Error ? error.message : "保存失败"
+      });
     }
-
-    const { content } = (await response.json()) as { content: PlatformContent };
-    dispatch({
-      type: "UPDATE_PLATFORM_CONTENT",
-      payload: { platform: content.platform, patch: content }
-    });
-    dispatch({ type: "SET_STATUS", payload: "修改已保存" });
-  }, [state.activePlatformTab, state.platformContents]);
+  }, [state.activePlatformTab, state.contentId, state.platformContents, state.rawContent]);
 
   const publish = useCallback(async () => {
     const platformContents = state.settings.platforms

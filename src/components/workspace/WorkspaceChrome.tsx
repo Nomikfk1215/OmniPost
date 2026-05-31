@@ -8,22 +8,15 @@ import { useWorkflow } from "./WorkflowProvider";
 export function WorkspaceChrome() {
   const {
     state,
-    saveActiveContent,
-    setStatus
+    saveActiveContent
   } = useWorkflow();
   const hasGeneratedContent = state.settings.platforms.some(
     (platform) => Boolean(state.platformContents[platform].data)
   );
-  const activeContent = state.platformContents[state.activePlatformTab].data;
   const status = state.statusMessage ?? (hasGeneratedContent ? "平台版本已就绪" : "草稿编辑中");
 
   function handleSaveDraft() {
-    if (activeContent) {
-      void saveActiveContent();
-      return;
-    }
-
-    setStatus("原始草稿已保留在当前工作台");
+    void saveActiveContent();
   }
 
   return (
