@@ -8,6 +8,7 @@ import {
   useReducer,
   type ReactNode
 } from "react";
+import { collectContentImages } from "@/lib/images/assets";
 import { validatePlatformContent } from "@/lib/validators";
 import { createId } from "@/lib/utils";
 import type {
@@ -66,6 +67,10 @@ type Action =
   | { type: "SET_STATUS"; payload: string | null }
   | { type: "SET_SAMPLE" };
 
+type AddImagesOptions = {
+  onLocalImages?: (images: UploadedImage[]) => void;
+};
+
 const emptySlots = PLATFORMS.reduce(
   (acc, platform) => ({
     ...acc,
@@ -101,22 +106,71 @@ const initialState: WorkspaceState = {
   publishStatus: "idle"
 };
 
-function toPublishableImageAssets(images: UploadedImage[]): ImageAsset[] {
-  return images
-    .filter((image) => image.uploadStatus !== "failed" && !image.url.startsWith("blob:"))
-    .map(({ uploadStatus, localPreviewUrl, ...image }) => image);
+function stripUploadFields(image: UploadedImage): ImageAsset {
+  const { uploadStatus, localPreviewUrl, ...asset } = image;
+  return asset;
 }
 
-function applyCoverImagesToPlatformContent(
+function toPublishableImageAssets(rawContent: RawContent): ImageAsset[] {
+  const uploadedImages = rawContent.images
+    .filter((image) => image.uploadStatus !== "failed")
+    .map(stripUploadFields);
+
+  return collectContentImages({
+    rawText: rawContent.body,
+    images: uploadedImages
+  }).filter((image) => !image.url.startsWith("blob:"));
+}
+
+function replaceImageUrls(body: string, replacements: Array<{ from?: string; to?: string }>) {
+  return replacements.reduce((nextBody, replacement) => {
+    if (!replacement.from || !replacement.to || replacement.from === replacement.to) {
+      return nextBody;
+    }
+
+    return nextBody.split(replacement.from).join(replacement.to);
+  }, body);
+}
+
+function removeInlineImagesByUrl(body: string, urls: string[]) {
+  const failedUrls = new Set(urls.filter(Boolean));
+
+  if (!failedUrls.size) {
+    return body;
+  }
+
+  return body
+    .replace(
+      /(?:\n{0,2})!\[[^\]]*]\(([^)\s]+)(?:\s+"[^"]*")?\)(?:\n{0,2})/g,
+      (match, url: string) => (failedUrls.has(url.trim()) ? "\n\n" : match)
+    )
+    .replace(
+      /<figure\b[\s\S]*?<img\b[^>]*\ssrc=(["'])(.*?)\1[^>]*>[\s\S]*?<\/figure>/gi,
+      (match, _quote: string, url: string) => (failedUrls.has(url.trim()) ? "" : match)
+    )
+    .replace(
+      /<img\b[^>]*\ssrc=(["'])(.*?)\1[^>]*>/gi,
+      (match, _quote: string, url: string) => (failedUrls.has(url.trim()) ? "" : match)
+    )
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function applyImagesToPlatformContent(
   content: PlatformContent,
-  coverImages: ImageAsset[]
+  rawImages: ImageAsset[]
 ): PlatformContent {
   const retainedAssets = (content.imageAssets ?? []).filter(
-    (asset) => asset.source !== "upload"
+    (asset) => asset.source !== "upload" && asset.source !== "markdown"
   );
-  const imageAssets = [...coverImages, ...retainedAssets];
+  const imageAssets = [...rawImages, ...retainedAssets].filter(
+    (asset, index, assets) =>
+      assets.findIndex((candidate) => candidate.id === asset.id || candidate.url === asset.url) === index
+  );
   const existingPlans = content.imagePlan ?? [];
   const nextAssetIds = new Set(imageAssets.map((asset) => asset.id));
+  const rawAssetIds = new Set(rawImages.map((asset) => asset.id));
+  const coverImages = rawImages.filter((asset) => asset.source !== "markdown");
+  const inlineImages = rawImages.filter((asset) => asset.source === "markdown");
 
   const coverPlans: PlatformImagePlan[] = coverImages.map((asset, index) => ({
     role: index === 0 ? "cover" : "gallery",
@@ -124,37 +178,37 @@ function applyCoverImagesToPlatformContent(
     order: index,
     caption: asset.alt ?? asset.name
   }));
+  const inlinePlans: PlatformImagePlan[] = inlineImages.map((asset, index) => ({
+    role: "inline",
+    imageAssetId: asset.id,
+    order: coverPlans.length + index,
+    caption: asset.alt ?? asset.name
+  }));
   const retainedPlans = existingPlans
-    .filter((plan) => plan.role !== "cover" && nextAssetIds.has(plan.imageAssetId))
+    .filter(
+      (plan) =>
+        nextAssetIds.has(plan.imageAssetId) &&
+        !rawAssetIds.has(plan.imageAssetId) &&
+        !(coverPlans.length > 0 && plan.role === "cover")
+    )
     .map((plan, index) => ({
       ...plan,
-      order: coverPlans.length + index
+      order: coverPlans.length + inlinePlans.length + index
     }));
-  const fallbackPlan: PlatformImagePlan[] =
-    coverPlans.length === 0 && imageAssets[0]
-      ? [
-          {
-            role: "cover",
-            imageAssetId: imageAssets[0].id,
-            order: 0,
-            caption: imageAssets[0].alt ?? imageAssets[0].name
-          }
-        ]
-      : [];
 
   return {
     ...content,
     imageAssets,
-    imagePlan: [...coverPlans, ...fallbackPlan, ...retainedPlans],
+    imagePlan: [...coverPlans, ...inlinePlans, ...retainedPlans],
     updatedAt: new Date().toISOString()
   };
 }
 
-function syncCoverImagesIntoReadySlots(
+function syncImagesIntoReadySlots(
   slots: Record<Platform, PlatformSlot>,
-  images: UploadedImage[]
+  rawContent: RawContent
 ) {
-  const coverImages = toPublishableImageAssets(images);
+  const images = toPublishableImageAssets(rawContent);
 
   return PLATFORMS.reduce((nextSlots, platform) => {
     const slot = slots[platform];
@@ -166,7 +220,7 @@ function syncCoverImagesIntoReadySlots(
 
     nextSlots[platform] = {
       ...slot,
-      data: applyCoverImagesToPlatformContent(slot.data, coverImages)
+      data: applyImagesToPlatformContent(slot.data, images)
     };
     return nextSlots;
   }, {} as Record<Platform, PlatformSlot>);
@@ -190,52 +244,68 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
       };
     case "REPLACE_IMAGES": {
       const tempIds = new Set(action.payload.tempIds);
-      let nextImageIndex = 0;
+      const replacementByTempId = new Map(
+        action.payload.tempIds.map((id, index) => [id, action.payload.images[index]])
+      );
+      const replacements = state.rawContent.images
+        .filter((image) => tempIds.has(image.id))
+        .map((image) => ({
+          from: image.localPreviewUrl ?? image.url,
+          to: replacementByTempId.get(image.id)?.url
+        }));
       const images = state.rawContent.images.flatMap((image) => {
         if (!tempIds.has(image.id)) {
           return [image];
         }
 
-        const replacement = action.payload.images[nextImageIndex];
-        nextImageIndex += 1;
+        const replacement = replacementByTempId.get(image.id);
         return replacement ? [replacement] : [];
       });
+      const rawContent = {
+        ...state.rawContent,
+        body: replaceImageUrls(state.rawContent.body, replacements),
+        images
+      };
 
       return {
         ...state,
-        rawContent: {
-          ...state.rawContent,
-          images
-        },
-        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images)
+        rawContent,
+        platformContents: syncImagesIntoReadySlots(state.platformContents, rawContent)
       };
     }
     case "MARK_IMAGES_FAILED": {
       const failedIds = new Set(action.payload);
+      const failedUrls = state.rawContent.images
+        .filter((image) => failedIds.has(image.id))
+        .flatMap((image) => [image.localPreviewUrl, image.url])
+        .filter((url): url is string => Boolean(url));
       const images = state.rawContent.images.map((image) =>
         failedIds.has(image.id) ? { ...image, uploadStatus: "failed" as const } : image
       );
+      const rawContent = {
+        ...state.rawContent,
+        body: removeInlineImagesByUrl(state.rawContent.body, failedUrls),
+        images
+      };
 
       return {
         ...state,
-        rawContent: {
-          ...state.rawContent,
-          images
-        },
-        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images),
+        rawContent,
+        platformContents: syncImagesIntoReadySlots(state.platformContents, rawContent),
         statusMessage: "图片上传失败，请重新选择图片"
       };
     }
     case "REMOVE_IMAGE": {
       const images = state.rawContent.images.filter((image) => image.id !== action.payload);
+      const rawContent = {
+        ...state.rawContent,
+        images
+      };
 
       return {
         ...state,
-        rawContent: {
-          ...state.rawContent,
-          images
-        },
-        platformContents: syncCoverImagesIntoReadySlots(state.platformContents, images)
+        rawContent,
+        platformContents: syncImagesIntoReadySlots(state.platformContents, rawContent)
       };
     }
     case "SET_PLATFORMS": {
@@ -396,7 +466,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
           title: "如何用 AI 提升学习效率",
           contentType: "tutorial",
           body:
-            "很多人在学习时没有计划，也不知道如何复盘。可以用 AI 帮助自己拆解学习目标、整理资料、生成每日学习计划，并在学习后生成复盘问题。\n\n这样可以提升学习效率，也能更快发现知识漏洞。关键不是让 AI 替你学习，而是让它成为学习流程里的辅助系统。",
+            "<p>很多人在学习时没有计划，也不知道如何复盘。可以用 AI 帮助自己拆解学习目标、整理资料、生成每日学习计划，并在学习后生成复盘问题。</p><p>这样可以提升学习效率，也能更快发现知识漏洞。关键不是让 AI 替你学习，而是让它成为学习流程里的辅助系统。</p>",
           userTags: ["AI", "学习效率", "方法论"]
         },
         statusMessage: null
@@ -412,7 +482,7 @@ type WorkflowContextValue = {
   publish: () => Promise<void>;
   saveActiveContent: () => Promise<void>;
   updateRaw: (patch: Partial<RawContent>) => void;
-  addImages: (files: FileList | null) => void;
+  addImages: (files: FileList | null, options?: AddImagesOptions) => void;
   removeImage: (id: string) => void;
   setPlatforms: (platforms: Platform[]) => void;
   setStylePreset: (stylePreset: StylePreset) => void;
@@ -432,7 +502,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "UPDATE_RAW", payload: patch });
   }, []);
 
-  const addImages = useCallback((files: FileList | null) => {
+  const addImages = useCallback((files: FileList | null, options?: AddImagesOptions) => {
     if (!files?.length) {
       return;
     }
@@ -454,6 +524,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       };
     });
     dispatch({ type: "ADD_IMAGES", payload: images });
+    options?.onLocalImages?.(images);
 
     const formData = new FormData();
     fileList.forEach((file) => formData.append("files", file));
@@ -598,9 +669,9 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
     const platformContents = state.settings.platforms
       .map((platform) => state.platformContents[platform].data)
       .filter(Boolean) as PlatformContent[];
-    const publishableCoverImages = toPublishableImageAssets(state.rawContent.images);
+    const publishableImages = toPublishableImageAssets(state.rawContent);
     const platformContentsForPublish = platformContents.map((content) =>
-      applyCoverImagesToPlatformContent(content, publishableCoverImages)
+      applyImagesToPlatformContent(content, publishableImages)
     );
 
     if (!state.contentId || platformContents.length === 0) {
@@ -638,8 +709,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   }, [
     state.contentId,
     state.platformContents,
-    state.rawContent.images,
-    state.rawContent.title,
+    state.rawContent,
     state.settings.platforms
   ]);
 

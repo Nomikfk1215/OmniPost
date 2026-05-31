@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from "react";
 
 type MarkdownBodyProps = {
@@ -44,6 +45,33 @@ function cleanMarker(text: string) {
   return text.trim().replace(/^[-*]\s+/, "").replace(/^\d+[.)、]\s+/, "");
 }
 
+function parseMarkdownImage(text: string) {
+  const match = text.trim().match(/^!\[([^\]]*)]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    alt: match[1]?.trim() || "正文图片",
+    url: match[2]?.trim() ?? "",
+    title: match[3]?.trim()
+  };
+}
+
+function renderImageBlock(image: { alt: string; url: string; title?: string }, key: number) {
+  return (
+    <figure key={key} className="overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+      <img src={image.url} alt={image.alt} className="max-h-[520px] w-full object-contain" />
+      {image.alt || image.title ? (
+        <figcaption className="border-t border-gray-100 bg-white px-3 py-2 text-xs text-gray-500">
+          {image.title ?? image.alt}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 export function MarkdownBody({ text, variant = "default" }: MarkdownBodyProps) {
   const lines = text.split(/\r?\n/);
   const blocks: ReactNode[] = [];
@@ -53,6 +81,14 @@ export function MarkdownBody({ text, variant = "default" }: MarkdownBodyProps) {
     const line = lines[index].trim();
 
     if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const image = parseMarkdownImage(line);
+
+    if (image) {
+      blocks.push(renderImageBlock(image, index));
       index += 1;
       continue;
     }

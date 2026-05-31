@@ -22,13 +22,22 @@ function buildXiaohongshuPlan(params: {
   }));
 }
 
-function buildCoverPlan(asset: ImageAsset): PlatformImagePlan {
-  return {
-    role: "cover",
+function buildCoverGalleryPlans(assets: ImageAsset[]): PlatformImagePlan[] {
+  return assets.map((asset, index) => ({
+    role: index === 0 ? "cover" : "gallery",
     imageAssetId: asset.id,
-    order: 0,
+    order: index,
     caption: asset.alt ?? asset.name
-  };
+  }));
+}
+
+function buildInlinePlans(assets: ImageAsset[], startOrder = 0): PlatformImagePlan[] {
+  return assets.map((asset, index) => ({
+    role: "inline",
+    imageAssetId: asset.id,
+    order: startOrder + index,
+    caption: asset.alt ?? asset.name
+  }));
 }
 
 export async function enrichPlatformImages(
@@ -36,17 +45,20 @@ export async function enrichPlatformImages(
   platformContent: PlatformContent
 ): Promise<PlatformContent> {
   const sourceAssets = normalizeImageAssets(content.images);
-  let imageAssets = sourceAssets;
+  const inlineAssets = sourceAssets.filter((asset) => asset.source === "markdown");
+  let coverAssets = sourceAssets.filter((asset) => asset.source !== "markdown");
+  let imageAssets = [...coverAssets, ...inlineAssets];
   const coverConfig = generatedCoverConfig[platformContent.platform as keyof typeof generatedCoverConfig];
 
-  if (coverConfig && imageAssets.length === 0) {
-    imageAssets = await createGeneratedCardImages({
+  if (coverConfig && coverAssets.length === 0 && (imageAssets.length === 0 || platformContent.platform !== "xiaohongshu")) {
+    coverAssets = await createGeneratedCardImages({
       title: platformContent.title,
       body: platformContent.body || platformContent.html || platformContent.description || platformContent.digest || "",
       imageSuggestions: platformContent.imageSuggestions,
       count: coverConfig.count,
       aspect: coverConfig.aspect
     });
+    imageAssets = [...coverAssets, ...inlineAssets];
   }
 
   if (imageAssets.length === 0) {
@@ -54,20 +66,27 @@ export async function enrichPlatformImages(
   }
 
   if (platformContent.platform !== "xiaohongshu") {
+    const coverPlans = buildCoverGalleryPlans(coverAssets);
+
     return {
       ...platformContent,
       imageAssets,
-      imagePlan: imageAssets[0] ? [buildCoverPlan(imageAssets[0])] : undefined
+      imagePlan: [...coverPlans, ...buildInlinePlans(inlineAssets, coverPlans.length)]
     };
   }
+
+  const xiaohongshuAssets = coverAssets.length ? [...coverAssets, ...inlineAssets] : inlineAssets;
 
   return {
     ...platformContent,
     imageAssets,
     imagePlan: buildXiaohongshuPlan({
       title: platformContent.title,
-      assets: imageAssets,
+      assets: xiaohongshuAssets,
       imageSuggestions: platformContent.imageSuggestions
+    }).map((plan) => {
+      const asset = imageAssets.find((candidate) => candidate.id === plan.imageAssetId);
+      return asset?.source === "markdown" ? { ...plan, role: "inline" } : plan;
     })
   };
 }

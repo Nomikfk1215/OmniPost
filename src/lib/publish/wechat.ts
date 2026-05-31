@@ -5,6 +5,8 @@ import type { PlatformPublisher, PublishRequest, PublishResponse } from "./types
 import {
   getAccessToken,
   uploadDefaultCoverMaterial,
+  uploadArticleImage,
+  uploadArticleImageFromUrl,
   uploadImageMaterial,
   uploadImageFromUrl,
   createDraft,
@@ -18,10 +20,9 @@ import {
  */
 function mapToWechatDraft(
   content: PlatformContent,
+  bodyHtml: string,
   coverMediaId?: string
 ): WechatDraftArticle {
-  const bodyHtml = buildWechatArticleHtml(content);
-
   return {
     title: content.title.slice(0, 64), // 微信标题最长 64 字
     digest: (content.digest ?? content.summary ?? "").slice(0, 120),
@@ -41,6 +42,15 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function decodeHtmlAttribute(value: string) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
 function hasHtmlTag(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value);
 }
@@ -55,7 +65,33 @@ function inlineWechatStyles(html: string) {
     .replace(/<ul(\s[^>]*)?>/gi, '<ul style="margin:0 0 18px;padding-left:22px;color:#374151;font-size:16px;line-height:1.9;">')
     .replace(/<ol(\s[^>]*)?>/gi, '<ol style="margin:0 0 18px;padding-left:22px;color:#374151;font-size:16px;line-height:1.9;">')
     .replace(/<li(\s[^>]*)?>/gi, '<li style="margin:0 0 8px;">')
-    .replace(/<strong(\s[^>]*)?>/gi, '<strong style="font-weight:700;color:#111827;">');
+    .replace(/<strong(\s[^>]*)?>/gi, '<strong style="font-weight:700;color:#111827;">')
+    .replace(/<figure(\s[^>]*)?>/gi, '<figure style="margin:20px 0;text-align:center;">')
+    .replace(/<figcaption(\s[^>]*)?>/gi, '<figcaption style="margin-top:8px;font-size:13px;line-height:1.6;color:#6b7280;">')
+    .replace(/<img(\s[^>]*)?>/gi, (match) => {
+      if (/style=/.test(match)) {
+        return match;
+      }
+
+      return match.replace(
+        /<img/i,
+        '<img style="display:block;max-width:100%;height:auto;margin:0 auto;border-radius:6px;"'
+      );
+    });
+}
+
+function markdownImageToHtml(value: string) {
+  const match = value.trim().match(/^!\[([^\]]*)]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const alt = match[1]?.trim() || "正文图片";
+  const src = match[2]?.trim() ?? "";
+  const caption = match[3]?.trim() || alt;
+
+  return `<figure><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"/>${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}</figure>`;
 }
 
 function markdownLikeToHtml(value: string) {
@@ -66,6 +102,12 @@ function markdownLikeToHtml(value: string) {
 
   return blocks
     .map((block) => {
+      const imageHtml = markdownImageToHtml(block);
+
+      if (imageHtml) {
+        return imageHtml;
+      }
+
       if (/^#{1,3}\s+/.test(block)) {
         const level = Math.min(3, block.match(/^#+/)?.[0].length ?? 2);
         return `<h${level}>${escapeHtml(block.replace(/^#{1,3}\s+/, ""))}</h${level}>`;
@@ -86,13 +128,18 @@ function markdownLikeToHtml(value: string) {
     .join("");
 }
 
-function buildWechatArticleHtml(content: PlatformContent) {
+async function buildWechatArticleHtml(content: PlatformContent, accessToken: string) {
   const raw = (content.html ?? content.body).trim();
   const articleHtml = hasHtmlTag(raw) ? inlineWechatStyles(raw) : inlineWechatStyles(markdownLikeToHtml(raw));
+  const articleHtmlWithWechatImages = await rewriteInlineImageSources(
+    accessToken,
+    content,
+    articleHtml
+  );
 
   return [
     '<section style="max-width:677px;margin:0 auto;padding:8px 0 24px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Microsoft YaHei,sans-serif;">',
-    articleHtml,
+    articleHtmlWithWechatImages,
     '<p style="margin:24px 0 0;font-size:13px;line-height:1.8;color:#9ca3af;">由 OmniPost 辅助生成，请在发布前复核事实与表述。</p>',
     '</section>'
   ].join("");
@@ -155,6 +202,96 @@ async function uploadLocalImageAsset(
   });
 
   return uploadImageMaterial(accessToken, blob, filename);
+}
+
+async function uploadLocalArticleImageAsset(
+  accessToken: string,
+  asset: NonNullable<PlatformContent["imageAssets"]>[number]
+) {
+  if (!asset.url.startsWith("/")) {
+    return null;
+  }
+
+  const normalized = path.normalize(asset.url).replace(/^([/\\])+/, "");
+  const publicDir = path.join(process.cwd(), "public");
+  const filePath = path.join(publicDir, normalized);
+  const relative = path.relative(publicDir, filePath);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  const bytes = await readFile(filePath);
+  const filename = asset.fileName ?? asset.name ?? path.basename(filePath);
+  const blob = new Blob([new Uint8Array(bytes)], {
+    type: getContentType(filename, asset.mimeType)
+  });
+
+  return uploadArticleImage(accessToken, blob, filename);
+}
+
+async function uploadArticleImageAsset(
+  accessToken: string,
+  asset: NonNullable<PlatformContent["imageAssets"]>[number]
+) {
+  try {
+    if (isHttpUrl(asset.url)) {
+      return await uploadArticleImageFromUrl(accessToken, asset.url);
+    }
+
+    return await uploadLocalArticleImageAsset(accessToken, asset);
+  } catch (error) {
+    console.warn(
+      `上传正文图片失败: ${asset.url} — ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
+  }
+}
+
+async function rewriteInlineImageSources(
+  accessToken: string,
+  content: PlatformContent,
+  html: string
+) {
+  const srcMatches = Array.from(html.matchAll(/<img\b[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi));
+
+  if (!srcMatches.length) {
+    return html;
+  }
+
+  const assetsByUrl = new Map((content.imageAssets ?? []).map((asset) => [asset.url, asset]));
+  const replacements = new Map<string, string>();
+
+  for (const match of srcMatches) {
+    const src = match[1]?.trim();
+    const normalizedSrc = src ? decodeHtmlAttribute(src) : "";
+
+    if (!src || replacements.has(src)) {
+      continue;
+    }
+
+    const asset = assetsByUrl.get(normalizedSrc) ?? assetsByUrl.get(src);
+
+    if (!asset) {
+      continue;
+    }
+
+    const uploadedUrl = await uploadArticleImageAsset(accessToken, asset);
+
+    if (uploadedUrl) {
+      replacements.set(src, uploadedUrl);
+    }
+  }
+
+  if (!replacements.size) {
+    return html;
+  }
+
+  return html.replace(
+    /(<img\b[^>]*\ssrc=["'])([^"']+)(["'][^>]*>)/gi,
+    (match, before: string, src: string, after: string) =>
+      replacements.has(src) ? `${before}${replacements.get(src)}${after}` : match
+  );
 }
 
 async function uploadPlannedCoverMaterial(
@@ -252,7 +389,8 @@ export const wechatPublisher: PlatformPublisher = {
     }
 
     // 创建草稿
-    const draftArticle = mapToWechatDraft(platformContent, coverMediaId);
+    const bodyHtml = await buildWechatArticleHtml(platformContent, accessToken);
+    const draftArticle = mapToWechatDraft(platformContent, bodyHtml, coverMediaId);
 
     let mediaId: string;
     try {
